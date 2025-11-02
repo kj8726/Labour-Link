@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
     <!-- Navigation -->
@@ -26,6 +27,9 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#services">Services</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#nearby-map">Find Nearby</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#featured-pros">Professionals</a>
@@ -181,6 +185,39 @@
         </div>
     </section>
 
+    <!-- Map Section -->
+    <section id="nearby-map" class="section-map">
+        <div class="container">
+            <div class="section-header text-center">
+                <h2>Find Professionals Near You</h2>
+                <p class="section-subtitle">Browse skilled workers available in your area on our interactive map</p>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="map-container">
+                        <div class="map-overlay">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoLocate" checked>
+                                <label class="form-check-label" for="autoLocate">
+                                    <i class="fas fa-location-crosshairs me-1"></i>Auto-locate
+                                </label>
+                            </div>
+                        </div>
+                        <div id="labourMap"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Click on markers to view professional details and contact information
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Services Section -->
     <section id="services" class="section-services">
         <div class="container">
@@ -192,56 +229,56 @@
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-tint"></i>
-                        <h5>Plumbing</h4>
+                        <h5>Plumbing</h5>
                         <p>Pipe repairs, installation, maintenance</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-bolt"></i>
-                        <h5>Electrical</h4>
+                        <h5>Electrical</h5>
                         <p>Wiring, repairs, installations</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-hammer"></i>
-                        <h5>Carpentry</h4>
+                        <h5>Carpentry</h5>
                         <p>Furniture, repairs, custom work</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-paint-roller"></i>
-                        <h5>Painting</h4>
+                        <h5>Painting</h5>
                         <p>Home, office, interior, exterior</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-cube"></i>
-                        <h5>Masonry</h4>
+                        <h5>Masonry</h5>
                         <p>Brickwork, concrete, repairs</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-fan"></i>
-                        <h5>AC Repair</h4>
+                        <h5>AC Repair</h5>
                         <p>Installation, maintenance, repair</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-tree"></i>
-                        <h5>Gardening</h4>
+                        <h5>Gardening</h5>
                         <p>Landscaping, maintenance</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
                     <div class="service-card">
                         <i class="fas fa-broom"></i>
-                        <h5>Cleaning</h4>
+                        <h5>Cleaning</h5>
                         <p>Home, office, deep cleaning</p>
                     </div>
                 </div>
@@ -285,7 +322,7 @@
                                     </div>
                                     <p class="location">
                                         <i class="fas fa-map-marker-alt"></i>
-                                        <%= labour.address.city %>, <%= labour.address.state %>
+                                        <%= labour.address && labour.address.city ? labour.address.city : 'Location' %>, <%= labour.address && labour.address.state ? labour.address.state : 'Not set' %>
                                     </p>
                                     <div class="pricing">
                                         <span class="price">$<%= labour.wagePerHour %>/hour</span>
@@ -487,7 +524,167 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Initialize the map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing map...');
+            
+            // Default center (India)
+            const defaultCenter = [20.5937, 78.9629];
+            
+            // Create map
+            const map = L.map('labourMap').setView(defaultCenter, 5);
+            console.log('Map created');
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Parse labours data from EJS
+            try {
+                const labours = <%- typeof allLabours !== 'undefined' ? allLabours : '[]' %>;
+                console.log('Found labours:', labours ? labours.length : 0);
+                
+                // Add markers for each labour
+                let markersAdded = 0;
+                if (labours && labours.length > 0) {
+                    labours.forEach(labour => {
+                        if (labour.location && labour.location.coordinates && 
+                            labour.location.coordinates.length === 2 &&
+                            labour.location.coordinates[0] !== 0 && 
+                            labour.location.coordinates[1] !== 0) {
+                            
+                            const [lng, lat] = labour.location.coordinates;
+                            
+                            // Create custom icon
+                            const customIcon = L.divIcon({
+                                className: 'labour-marker',
+                                html: '<i class="fas fa-user" style="color: white; font-size: 10px;"></i>',
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
+                            });
+                            
+                            // Create popup content
+                            const popupContent = `
+                                <div class="map-popup">
+                                    <div class="d-flex align-items-center mb-2">
+                                        ${labour.profileImage ? 
+                                            `<img src="${labour.profileImage}" alt="${labour.name}" class="popup-img" onerror="this.style.display='none'">` : 
+                                            '<i class="fas fa-user fa-2x text-primary me-2"></i>'
+                                        }
+                                        <div>
+                                            <h6 class="mb-0">${labour.name}</h6>
+                                            <p class="text-muted mb-0">${labour.profession || 'Professional'}</p>
+                                        </div>
+                                    </div>
+                                    <div class="rating mb-2">
+                                        ${Array.from({length: 5}, (_, i) => 
+                                            `<i class="fas fa-star${i < Math.floor(labour.rating || 0) ? '' : '-half-alt'} text-warning"></i>`
+                                        ).join('')}
+                                        <span class="ms-1">${(labour.rating || 0).toFixed(1)}</span>
+                                    </div>
+                                    <p class="mb-1"><strong>$${labour.wagePerHour || '0'}/hour</strong></p>
+                                    <a href="/labour/${labour._id}" class="btn btn-sm btn-primary w-100">View Profile</a>
+                                </div>
+                            `;
+                            
+                            // Add marker to map
+                            L.marker([lat, lng], { icon: customIcon })
+                                .addTo(map)
+                                .bindPopup(popupContent);
+                            
+                            markersAdded++;
+                        }
+                    });
+                }
+                
+                console.log(`Added ${markersAdded} markers to the map`);
+                
+                // Add sample markers if no labours have locations
+                if (markersAdded === 0) {
+                    const sampleLocations = [
+                        { lat: 28.6139, lng: 77.2090, name: "Sample Electrician", profession: "Electrician" }, // Delhi
+                        { lat: 19.0760, lng: 72.8777, name: "Sample Plumber", profession: "Plumber" }, // Mumbai
+                        { lat: 12.9716, lng: 77.5946, name: "Sample Carpenter", profession: "Carpenter" } // Bangalore
+                    ];
+                    
+                    sampleLocations.forEach(location => {
+                        const popupContent = `
+                            <div class="map-popup">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-user fa-2x text-primary me-2"></i>
+                                    <div>
+                                        <h6 class="mb-0">${location.name}</h6>
+                                        <p class="text-muted mb-0">${location.profession}</p>
+                                    </div>
+                                </div>
+                                <p class="mb-2">Sample professional location</p>
+                                <p class="text-muted small">Add location data to your professionals to see them here</p>
+                            </div>
+                        `;
+                        
+                        L.marker([location.lat, location.lng])
+                            .addTo(map)
+                            .bindPopup(popupContent);
+                    });
+                    
+                    console.log('Added sample markers for demonstration');
+                }
+                
+            } catch (error) {
+                console.error('Error processing labours data:', error);
+            }
+            
+            // Auto-locate user
+            const autoLocateCheckbox = document.getElementById('autoLocate');
+            
+            if (autoLocateCheckbox.checked && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        
+                        console.log('User location found:', userLat, userLng);
+                        
+                        // Add user location marker
+                        L.marker([userLat, userLng])
+                            .addTo(map)
+                            .bindPopup('Your Location')
+                            .openPopup();
+                        
+                        // Center map on user location
+                        map.setView([userLat, userLng], 12);
+                    },
+                    (error) => {
+                        console.log('Geolocation error:', error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000
+                    }
+                );
+            }
+            
+            // Toggle auto-locate
+            autoLocateCheckbox.addEventListener('change', function() {
+                if (this.checked && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const userLat = position.coords.latitude;
+                            const userLng = position.coords.longitude;
+                            map.setView([userLat, userLng], 12);
+                        },
+                        (error) => {
+                            console.log('Geolocation error:', error);
+                        }
+                    );
+                }
+            });
+        });
+
         // Smooth scrolling for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
@@ -527,7 +724,7 @@
         }, observerOptions);
 
         // Observe elements for animation
-        document.querySelectorAll('.step-card, .service-card, .professional-card, .job-card').forEach(el => {
+        document.querySelectorAll('.step-card, .service-card, .professional-card, .job-card, .section-map').forEach(el => {
             observer.observe(el);
         });
     </script>

@@ -110,6 +110,13 @@ app.get('/home', async (req, res) => {
         .sort({ rating: -1, totalReviews: -1 })
         .limit(6);
 
+        // Get ALL labours with location data for the map
+        const allLabours = await User.find({ 
+            userType: 'labour', 
+            isActive: true
+        })
+        .select('name profession rating location profileImage wagePerHour _id');
+
         // Get recent jobs (from orders)
         const recentJobs = await Order.find({ status: 'pending' })
             .populate('customerId', 'name')
@@ -124,6 +131,7 @@ app.get('/home', async (req, res) => {
 
         res.render('home', {
             featuredLabours,
+            allLabours: JSON.stringify(allLabours), // ADD THIS LINE
             recentJobs,
             stats: {
                 totalLabours,
@@ -136,6 +144,7 @@ app.get('/home', async (req, res) => {
         console.error('Error loading home page:', error);
         res.render('home', { 
             featuredLabours: [],
+            allLabours: '[]', // ADD THIS LINE FOR ERROR CASE
             recentJobs: [],
             stats: { totalLabours: 0, totalCustomers: 0, completedJobs: 0 },
             user: null

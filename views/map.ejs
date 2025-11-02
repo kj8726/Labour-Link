@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nearby Labours</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 600px;
+      width: 100%;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Labours Near You</h2>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Get user's current location
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      const map = L.map('map').setView([lat, lng], 13);
+
+      // Add map tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Add user's marker
+      L.marker([lat, lng]).addTo(map)
+        .bindPopup("You are here")
+        .openPopup();
+
+      // Example labour locations (replace with database data)
+      const labours = [
+        { name: "Labour 1", lat: lat + 0.01, lng: lng + 0.01 },
+        { name: "Labour 2", lat: lat - 0.008, lng: lng - 0.005 },
+      ];
+
+      labours.forEach(l => {
+        L.marker([l.lat, l.lng]).addTo(map)
+          .bindPopup(l.name);
+      });
+    });
+  </script>
+</body>
+</html>
