@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labour Link - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">
+                <i class="fas fa-hands-helping"></i>
+                <span>Labour Link</span>
+            </div>
+            <p>Connect with skilled labour in your vicinity</p>
+        </div>
+
+        <div class="login-tabs">
+            <button class="tab-btn active" onclick="showTab('login')">Login</button>
+            <button class="tab-btn" onclick="showTab('register')">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" class="form active" action="/login" method="POST">
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" name="password" required>
+            </div>
+            
+            <button type="submit" class="submit-btn">Login</button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm" class="form" action="/register" method="POST">
+            <div class="form-group">
+                <label for="regName">Full Name</label>
+                <input type="text" id="regName" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="regEmail">Email</label>
+                <input type="email" id="regEmail" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="regPassword">Password</label>
+                <input type="password" id="regPassword" name="password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="regPhone">Phone Number</label>
+                <input type="tel" id="regPhone" name="phone" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="regAge">Age</label>
+                <input type="number" id="regAge" name="age" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="regUserType">I am a</label>
+                <select id="regUserType" name="userType" required onchange="toggleLabourFields()">
+                    <option value="customer" <%= typeof preSelectUserType !== 'undefined' && preSelectUserType === 'customer' ? 'selected' : '' %>>Customer</option>
+                    <option value="labour" <%= typeof preSelectUserType !== 'undefined' && preSelectUserType === 'labour' ? 'selected' : '' %>>Professional</option>
+                </select>
+            </div>
+            
+            <div id="labourFields" class="labour-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="regProfession">Profession</label>
+                    <input type="text" id="regProfession" name="profession">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regExperience">Experience</label>
+                    <input type="text" id="regExperience" name="experience" placeholder="e.g., 5 years">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regWageHour">Wage per Hour ($)</label>
+                    <input type="number" id="regWageHour" name="wagePerHour">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regWageDay">Wage per Day ($)</label>
+                    <input type="number" id="regWageDay" name="wagePerDay">
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn">Register</button>
+        </form>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all forms
+            document.querySelectorAll('.form').forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected form and activate button
+            document.getElementById(tabName + 'Form').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        function toggleLabourFields() {
+            const userType = document.getElementById('regUserType').value;
+            const labourFields = document.getElementById('labourFields');
+            
+            if (userType === 'labour') {
+                labourFields.style.display = 'block';
+                // Make labour fields required
+                document.querySelectorAll('#labourFields input').forEach(input => {
+                    input.required = true;
+                });
+            } else {
+                labourFields.style.display = 'none';
+                // Remove required from labour fields
+                document.querySelectorAll('#labourFields input').forEach(input => {
+                    input.required = false;
+                });
+            }
+        }
+
+        // Auto-show labour fields if pre-selected as labour
+        document.addEventListener('DOMContentLoaded', function() {
+            <% if (typeof preSelectUserType !== 'undefined' && preSelectUserType === 'labour') { %>
+                // Switch to register tab and show labour fields
+                showTab('register');
+                document.getElementById('regUserType').value = 'labour';
+                toggleLabourFields();
+            <% } %>
+        });
+    </script>
+</body>
+</html>
