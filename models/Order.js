@@ -36,14 +36,7 @@ const orderSchema = new mongoose.Schema({
         max: 5
     },
     customerReview: String,
-    images: [{
-        url: String,
-        caption: String,
-        uploadedAt: {
-            type: Date,
-            default: Date.now
-        }
-    }],
+    images: [String],
     createdAt: {
         type: Date,
         default: Date.now

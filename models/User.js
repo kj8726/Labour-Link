@@ -28,6 +28,17 @@ const userSchema = new mongoose.Schema({
         state: String,
         zipCode: String
     },
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            default: [0, 0]
+        }
+    },
     userType: {
         type: String,
         enum: ['customer', 'labour'],
@@ -49,10 +60,7 @@ const userSchema = new mongoose.Schema({
         type: Number,
         required: function() { return this.userType === 'labour'; }
     },
-    profileImage: {
-        type: String,
-        default: ''
-    },
+    profileImage: String,
     rating: {
         type: Number,
         default: 0
@@ -79,5 +87,8 @@ userSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     next();
 });
+
+// Create geospatial index for location-based queries
+userSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);

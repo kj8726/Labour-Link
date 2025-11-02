@@ -11,14 +11,7 @@ const workSchema = new mongoose.Schema({
         required: true
     },
     description: String,
-    images: [{
-        url: String,
-        caption: String,
-        uploadedAt: {
-            type: Date,
-            default: Date.now
-        }
-    }],
+    images: [String],
     clientName: String,
     clientPhone: String,
     clientEmail: String,
