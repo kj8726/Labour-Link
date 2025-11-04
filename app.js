@@ -170,7 +170,8 @@ app.get('/login', async (req, res) => {
     
     res.render('login', { 
         error: null,
-        preSelectUserType: registerAs === 'labour' ? 'labour' : 'customer'
+        preSelectUserType: registerAs === 'labour' ? 'labour' : 'customer',
+        user: null 
     });
 });
 
@@ -202,35 +203,88 @@ app.post('/login', async (req, res) => {
 });
 
 // Register Handler (POST)
+// Register Handler (POST) - Enhanced with location and step-by-step data
 app.post('/register', async (req, res) => {
-    const { name, email, password, phone, age, userType, profession, experience, wagePerHour, wagePerDay } = req.body;
+    const { 
+        name, email, password, phone, age, userType, 
+        profession, experience, wagePerHour, wagePerDay,
+        city, state, lat, lng 
+    } = req.body;
     
     try {
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.render('login', { error: 'User with this email already exists' });
+            return res.render('login', { 
+                error: 'User with this email already exists',
+                preSelectUserType: userType 
+            });
+        }
+
+        // Validate required fields
+        if (!name || !email || !password || !phone || !userType || !city || !state) {
+            return res.render('login', { 
+                error: 'All required fields must be filled',
+                preSelectUserType: userType 
+            });
+        }
+
+        // Validate labour-specific fields
+        if (userType === 'labour' && (!profession || !experience)) {
+            return res.render('login', { 
+                error: 'Profession and experience are required for professionals',
+                preSelectUserType: userType 
+            });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const user = new User({
+        // Build user data with location
+        const userData = {
             name,
             email,
             password: hashedPassword,
             phone,
-            age: parseInt(age),
+            age: age ? parseInt(age) : null,
             userType,
-            profession: userType === 'labour' ? profession : undefined,
-            experience: userType === 'labour' ? experience : undefined,
-            wagePerHour: userType === 'labour' ? parseFloat(wagePerHour) : undefined,
-            wagePerDay: userType === 'labour' ? parseFloat(wagePerDay) : undefined
-        });
+            address: {
+                city,
+                state,
+                street: '',
+                zipCode: ''
+            },
+            isActive: true
+        };
+
+        // Add location coordinates if provided
+        if (lat && lng) {
+            userData.location = {
+                type: 'Point',
+                coordinates: [parseFloat(lng), parseFloat(lat)]
+            };
+        }
+
+        // Add labour-specific fields
+        if (userType === 'labour') {
+            userData.profession = profession;
+            userData.experience = experience;
+            userData.wagePerHour = wagePerHour ? parseFloat(wagePerHour) : 0;
+            userData.wagePerDay = wagePerDay ? parseFloat(wagePerDay) : 0;
+            userData.rating = 0;
+            userData.totalReviews = 0;
+        }
         
+        const user = new User(userData);
         await user.save();
+
+        // Set session
         req.session.userId = user._id;
         req.session.userType = user.userType;
+        req.session.userName = user.name;
         
+        console.log('Registration successful - User:', user.name, 'Type:', user.userType);
+        
+        // Redirect based on user type
         if (userType === 'customer') {
             res.redirect('/profile/customer');
         } else {
@@ -238,7 +292,10 @@ app.post('/register', async (req, res) => {
         }
     } catch (error) {
         console.error('Registration error:', error);
-        res.render('login', { error: 'Registration failed. Please try again.' });
+        res.render('login', { 
+            error: 'Registration failed. Please try again.',
+            preSelectUserType: req.body.userType 
+        });
     }
 });
 
@@ -300,6 +357,7 @@ app.get('/profile/customer', async (req, res) => {
 });
 
 // Labour Profile
+// Labour Profile route - add debugging
 app.get('/profile/labour', async (req, res) => {
     if (!req.session.userId) {
         return res.redirect('/login');
@@ -322,6 +380,12 @@ app.get('/profile/labour', async (req, res) => {
             .populate('customerId', 'name profileImage')
             .sort({ createdAt: -1 });
         
+        console.log('Labour profile data:', {
+            name: user.name,
+            profileImage: user.profileImage,
+            hasProfileImage: !!user.profileImage
+        });
+        
         res.render('labourProfile', { 
             labour: user, 
             works, 
@@ -335,7 +399,6 @@ app.get('/profile/labour', async (req, res) => {
         });
     }
 });
-
 // Edit Profile Page
 app.get('/edit-profile', async (req, res) => {
     if (!req.session.userId) {

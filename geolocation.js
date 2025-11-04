@@ -58,7 +58,7 @@ const seedGeolocationData = async () => {
             // Original 6 labours from major cities
             {
                 name: "Rajesh Kumar",
-                email: "rajesh.plumbewfer@example.com",
+                email: "rajesh.plumr@example.com",
                 password: "password123",
                 phone: "+91-9876543210",
                 age: 35,
@@ -83,7 +83,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Amit Sharma",
-                email: "amit.electridedcian@example.com",
+                email: "amit.eldcian@example.com",
                 password: "password123",
                 phone: "+91-9876543211",
                 age: 42,
@@ -110,7 +110,7 @@ const seedGeolocationData = async () => {
             // MAHARASHTRA SPECIFIC LABOURS - PUNE AREA
             {
                 name: "Sanjay Patil",
-                email: "sanjay.pluewwmber@pune.com",
+                email: "sanjay.pluewpune.com",
                 password: "password123",
                 phone: "+91-9876543220",
                 age: 32,
@@ -135,7 +135,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Ramesh Jadhav",
-                email: "ramesh.electewcwrician@pune.com",
+                email: "ramesh.electian@pune.com",
                 password: "password123",
                 phone: "+91-9876543221",
                 age: 45,
@@ -160,7 +160,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Vikas Deshmukh",
-                email: "vikas.carpentwecer@pune.com",
+                email: "vikas.carpener@pune.com",
                 password: "password123",
                 phone: "+91-9876543222",
                 age: 38,
@@ -185,7 +185,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Mahesh Kulkarni",
-                email: "mahesh.painter@pune.com",
+                email: "mahesh.paipune.com",
                 password: "password123",
                 phone: "+91-9876543223",
                 age: 41,
@@ -210,7 +210,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Deepak More",
-                email: "deepak.acrepair@pune.com",
+                email: "deepak.a@pune.com",
                 password: "password123",
                 phone: "+91-9876543224",
                 age: 29,
@@ -235,7 +235,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Sachin Pawar",
-                email: "sachin.cleaner@pune.com",
+                email: "sachin.cr@pune.com",
                 password: "password123",
                 phone: "+91-9876543225",
                 age: 27,
@@ -260,7 +260,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Nitin Thakur",
-                email: "nitin.gardener@pune.com",
+                email: "nitin.gardpune.com",
                 password: "password123",
                 phone: "+91-9876543226",
                 age: 50,
@@ -285,7 +285,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Ajit Nair",
-                email: "ajit.mason@pune.com",
+                email: "ajit.ma@pune.com",
                 password: "password123",
                 phone: "+91-9876543227",
                 age: 44,
@@ -310,7 +310,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Prakash Joshi",
-                email: "prakash.welder@pune.com",
+                email: "prakash.wr@pune.com",
                 password: "password123",
                 phone: "+91-9876543228",
                 age: 36,
@@ -335,7 +335,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Rahul Bansal",
-                email: "rahul.mechanic@pune.com",
+                email: "rahul.mecic@pune.com",
                 password: "password123",
                 phone: "+91-9876543229",
                 age: 31,
@@ -360,7 +360,7 @@ const seedGeolocationData = async () => {
             },
             {
                 name: "Anand Iyer",
-                email: "anand.technician@pune.com",
+                email: "anand.techian@pune.com",
                 password: "password123",
                 phone: "+91-9876543230",
                 age: 33,
