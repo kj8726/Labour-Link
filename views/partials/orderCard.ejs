@@ -1,0 +1,77 @@
+<div class="request-card <%= order.status %>">
+    <div class="d-flex gap-3 align-items-start">
+        <!-- Avatar -->
+        <div class="flex-shrink-0">
+            <% const otherUser = (viewerType === 'labour') ? order.customerId : order.labourId; %>
+            <% if (otherUser && otherUser.profileImage) { %>
+                <img src="<%= otherUser.profileImage %>" class="customer-avatar" alt="User">
+            <% } else { %>
+                <div class="customer-avatar-placeholder"><i class="fas fa-user"></i></div>
+            <% } %>
+        </div>
+
+        <!-- Details -->
+        <div class="flex-grow-1 min-width-0">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-1 mb-1">
+                <h6 class="mb-0 fw-semibold">
+                    <%= otherUser ? otherUser.name : 'Unknown User' %>
+                    <% if (viewerType === 'labour' && otherUser && otherUser.phone) { %>
+                        <span class="text-muted fw-normal small ms-1">· <%= otherUser.phone %></span>
+                    <% } %>
+                </h6>
+                <span class="status-badge status-<%= order.status.replace('-','') === 'inprogress' ? 'in-progress' : order.status %>
+                    <%- order.status === 'pending' ? ' status-pending' : order.status === 'in-progress' ? ' status-in-progress' : order.status === 'completed' ? ' status-completed' : ' status-cancelled' %>">
+                    <%= order.status === 'in-progress' ? 'In Progress' : order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+                </span>
+            </div>
+
+            <p class="mb-1 small"><i class="fas fa-wrench text-muted me-1"></i><strong><%= order.service %></strong></p>
+            <% if (order.description) { %>
+                <p class="mb-1 small text-secondary"><i class="fas fa-comment-dots text-muted me-1"></i><%= order.description %></p>
+            <% } %>
+            <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
+                <% if (order.amount) { %><span><i class="fas fa-rupee-sign me-1"></i>₹<%= order.amount %></span><% } %>
+                <span><i class="fas fa-clock me-1"></i><%= new Date(order.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <% if (viewerType === 'labour') { %>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <% if (order.status === 'pending') { %>
+                <button class="btn action-btn btn-success order-action-btn" data-order-id="<%= order._id %>" data-action="in-progress">
+                    <i class="fas fa-check me-1"></i>Accept
+                </button>
+                <button class="btn action-btn btn-outline-danger order-action-btn" data-order-id="<%= order._id %>" data-action="cancelled">
+                    <i class="fas fa-times me-1"></i>Decline
+                </button>
+            <% } else if (order.status === 'in-progress') { %>
+                <button class="btn action-btn btn-primary order-action-btn" data-order-id="<%= order._id %>" data-action="completed">
+                    <i class="fas fa-flag-checkered me-1"></i>Mark Complete
+                </button>
+                <button class="btn action-btn btn-outline-danger order-action-btn" data-order-id="<%= order._id %>" data-action="cancelled">
+                    <i class="fas fa-ban me-1"></i>Cancel Job
+                </button>
+                <a href="/chat/<%= order._id %>" class="btn action-btn chat-btn">
+                    <i class="fas fa-comments me-1"></i>Message Customer
+                </a>
+            <% } else if (order.status === 'completed') { %>
+                <span class="text-muted small"><i class="fas fa-lock me-1"></i>Job completed — chat closed</span>
+            <% } %>
+        </div>
+    <% } else { %>
+        <!-- Customer view -->
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <% if (order.status === 'in-progress') { %>
+                <a href="/chat/<%= order._id %>" class="btn action-btn chat-btn">
+                    <i class="fas fa-comments me-1"></i>Message Worker
+                </a>
+            <% } else if (order.status === 'completed') { %>
+                <span class="text-muted small"><i class="fas fa-lock me-1"></i>Job completed — chat closed</span>
+            <% } else if (order.status === 'pending') { %>
+                <span class="text-muted small"><i class="fas fa-hourglass-half me-1"></i>Waiting for worker to accept…</span>
+            <% } %>
+        </div>
+    <% } %>
+</div>

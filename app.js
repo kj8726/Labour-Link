@@ -11,6 +11,7 @@ const User = require('./models/User');
 const Order = require('./models/Order');
 const Work = require('./models/Work');
 const bcrypt = require('bcryptjs');
+const { workUpload } = require("./config/multer");
 const upload = require("./config/multer");
 const MongoStore = require('connect-mongo');
 
@@ -31,6 +32,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json()); 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -359,10 +361,10 @@ app.post('/contact-professional', async (req, res) => {
         const order = new Order({
             customerId: req.session.userId,
             labourId: professionalId,
-            serviceType: serviceType || 'General Service',
+            service: serviceType || 'General Service',
             description: message,
             budget: budget ? parseFloat(budget) : null,
-            timeline: timeline || 'Flexible',
+            amount: budget ? parseFloat(budget) : null,
             status: 'pending'
         });
 
@@ -376,6 +378,145 @@ app.post('/contact-professional', async (req, res) => {
     } catch (error) {
         console.error('Error contacting professional:', error);
         res.status(500).json({ success: false, message: 'Error sending request' });
+    }
+});
+
+// Update Order Status (labour accepts/rejects/completes a request)
+app.post('/update-order-status', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login to manage orders' });
+    }
+    try {
+        const { orderId, status } = req.body;
+        const allowedStatuses = ['in-progress', 'completed', 'cancelled'];
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status' });
+        }
+        const order = await Order.findOne({ _id: orderId, labourId: req.session.userId });
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found or not authorized' });
+        }
+        order.status = status;
+        if (status === 'completed') order.completedDate = new Date();
+        await order.save();
+        res.json({ success: true, message: 'Order status updated successfully' });
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({ success: false, message: 'Error updating order status' });
+    }
+});
+
+// Available Orders - redirect to new orders page
+app.get('/available-orders', (req, res) => {
+    if (!req.session?.userId) return res.redirect('/login');
+    res.redirect('/orders');
+});
+
+// Orders Page - dedicated requests management page for labour
+app.get('/orders', async (req, res) => {
+    if (!req.session?.userId) return res.redirect('/login');
+    try {
+        const user = await User.findById(req.session.userId);
+        if (!user || user.userType !== 'labour') return res.redirect('/profile/customer');
+
+        const orders = await Order.find({ labourId: req.session.userId })
+            .populate('customerId', 'name profileImage phone')
+            .sort({ createdAt: -1 });
+
+        res.render('orders', { labour: user, orders });
+    } catch (error) {
+        console.error('Error loading orders page:', error);
+        res.status(500).render('error', { error: 'Error loading orders', user: null });
+    }
+});
+
+// Chat Page
+app.get('/chat/:orderId', async (req, res) => {
+    if (!req.session?.userId) return res.redirect('/login');
+    try {
+        const Message = require('./models/Message');
+        const order = await Order.findById(req.params.orderId)
+            .populate('customerId', 'name profileImage phone')
+            .populate('labourId', 'name profileImage phone');
+
+        if (!order) return res.status(404).render('404', { user: null });
+
+        // Only the two parties can access this chat
+        const isCustomer = order.customerId._id.toString() === req.session.userId;
+        const isLabour   = order.labourId._id.toString()   === req.session.userId;
+        if (!isCustomer && !isLabour) return res.status(403).render('error', { error: 'Access denied', user: null });
+
+        const messages = await Message.find({ orderId: order._id })
+            .populate('senderId', 'name profileImage')
+            .sort({ createdAt: 1 });
+
+        const otherUser  = isCustomer ? order.labourId : order.customerId;
+        const viewerType = isCustomer ? 'customer' : 'labour';
+        const backUrl    = isCustomer ? '/profile/customer' : '/orders';
+
+        res.render('chat', { order, messages, otherUser, currentUserId: req.session.userId, viewerType, backUrl });
+    } catch (error) {
+        console.error('Error loading chat:', error);
+        res.status(500).render('error', { error: 'Error loading chat', user: null });
+    }
+});
+
+// Send a chat message
+app.post('/chat/:orderId/send', async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ success: false, message: 'Not logged in' });
+    try {
+        const Message = require('./models/Message');
+        const order = await Order.findById(req.params.orderId);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+        const isParty = [order.customerId.toString(), order.labourId.toString()].includes(req.session.userId);
+        if (!isParty) return res.status(403).json({ success: false, message: 'Access denied' });
+
+        if (order.status !== 'in-progress') {
+            return res.status(403).json({ success: false, message: 'Chat is only available while the job is in progress' });
+        }
+
+        const text = (req.body.text || '').trim();
+        if (!text) return res.status(400).json({ success: false, message: 'Message cannot be empty' });
+        if (text.length > 1000) return res.status(400).json({ success: false, message: 'Message too long' });
+
+        const msg = new Message({ orderId: order._id, senderId: req.session.userId, text });
+        await msg.save();
+
+        res.json({ success: true, message: { _id: msg._id, senderId: req.session.userId, text: msg.text, createdAt: msg.createdAt } });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ success: false, message: 'Error sending message' });
+    }
+});
+
+// Poll for new messages (long-polling fallback)
+app.get('/chat/:orderId/poll', async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ success: false });
+    try {
+        const Message = require('./models/Message');
+        const order = await Order.findById(req.params.orderId).select('status customerId labourId');
+        if (!order) return res.status(404).json({ success: false });
+
+        const isParty = [order.customerId.toString(), order.labourId.toString()].includes(req.session.userId);
+        if (!isParty) return res.status(403).json({ success: false });
+
+        const since = req.query.since ? new Date(req.query.since) : new Date(0);
+        const messages = await Message.find({ orderId: order._id, createdAt: { $gt: since } })
+            .populate('senderId', 'name profileImage')
+            .sort({ createdAt: 1 });
+
+        res.json({
+            messages: messages.map(m => ({
+                _id: m._id,
+                senderId: m.senderId._id.toString(),
+                text: m.text,
+                createdAt: m.createdAt
+            })),
+            orderStatus: order.status
+        });
+    } catch (error) {
+        res.status(500).json({ success: false });
     }
 });
 
@@ -680,7 +821,7 @@ app.get('/labour/:id', async (req, res) => {
 });
 
 // Add new work
-app.post('/add-work', async (req, res) => {
+app.post('/add-work', workUpload.array('workImages', 5), async (req, res) => {
     if (!req.session?.userId || req.session.userType !== 'labour') {
         return res.redirect('/login');
     }
@@ -693,7 +834,8 @@ app.post('/add-work', async (req, res) => {
             title,
             description,
             clientName,
-            completedDate: completedDate ? new Date(completedDate) : new Date()
+            completedDate: completedDate ? new Date(completedDate) : new Date(),
+            images: req.files ? req.files.map(f => f.path) : []
         });
         
         await work.save();

@@ -133,33 +133,68 @@
                     </div>
                 </section>
 
-                <!-- Portfolio Section -->
-                <section class="profile-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-briefcase me-2"></i>Portfolio (<%= works.length %>)
-                    </h3>
-                    <% if (works.length > 0) { %>
-                    <div class="portfolio-grid">
-                        <% works.forEach(work => { %>
-                        <div class="portfolio-item">
-                            <div class="portfolio-content">
-                                <h5 class="portfolio-title"><%= work.title %></h5>
-                                <p class="portfolio-description"><%= work.description %></p>
-                                <div class="portfolio-meta">
-                                    <span class="client">Client: <%= work.clientName %></span>
-                                    <span class="date"><%= work.completedDate.toLocaleDateString() %></span>
-                                </div>
-                            </div>
-                        </div>
-                        <% }) %>
-                    </div>
-                    <% } else { %>
-                    <div class="empty-state">
-                        <i class="fas fa-briefcase"></i>
-                        <p>No portfolio items yet</p>
-                    </div>
+<!-- Portfolio Section -->
+<section class="profile-section">
+    <h3 class="section-title">
+        <i class="fas fa-briefcase me-2"></i>Portfolio (<%= works.length %>)
+    </h3>
+    <% if (works.length > 0) { %>
+    <div class="portfolio-grid">
+        <% works.forEach(work => { %>
+        <div class="portfolio-item">
+            <% if (work.images && work.images.length > 0) { %>
+            <div class="portfolio-images">
+                <% work.images.forEach((img, idx) => { %>
+                <img src="<%= img %>"
+                     alt="<%= work.title %>"
+                     class="portfolio-thumb<%= idx > 0 ? ' d-none' : '' %>"
+                     onclick="openImageModal('<%= img %>', '<%= work.title %>')"
+                     style="cursor:pointer;">
+                <% }) %>
+                <% if (work.images.length > 1) { %>
+                <div class="portfolio-img-count">
+                    <i class="fas fa-images me-1"></i><%= work.images.length %> photos
+                </div>
+                <% } %>
+            </div>
+            <% } %>
+            <div class="portfolio-content">
+                <h5 class="portfolio-title"><%= work.title %></h5>
+                <% if (work.description) { %>
+                <p class="portfolio-description"><%= work.description %></p>
+                <% } %>
+                <div class="portfolio-meta">
+                    <% if (work.clientName) { %>
+                    <span class="client"><i class="fas fa-user me-1"></i><%= work.clientName %></span>
                     <% } %>
-                </section>
+                    <span class="date"><i class="fas fa-calendar me-1"></i><%= work.completedDate.toLocaleDateString() %></span>
+                </div>
+            </div>
+        </div>
+        <% }) %>
+    </div>
+    <% } else { %>
+    <div class="empty-state">
+        <i class="fas fa-briefcase"></i>
+        <p>No portfolio items yet</p>
+    </div>
+    <% } %>
+</section>
+
+<!-- Image Lightbox Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title text-white" id="imageModalTitle"></h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img id="imageModalImg" src="" alt="" class="img-fluid rounded" style="max-height:75vh;">
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- Reviews Section -->
                 <section class="profile-section">
@@ -461,5 +496,12 @@
             });
         });
     </script>
+    <script>
+function openImageModal(src, title) {
+    document.getElementById('imageModalImg').src = src;
+    document.getElementById('imageModalTitle').textContent = title;
+    new bootstrap.Modal(document.getElementById('imageModal')).show();
+}
+</script>
 </body>
 </html>
