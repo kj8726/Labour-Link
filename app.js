@@ -434,7 +434,7 @@ app.get('/orders', async (req, res) => {
 app.get('/chat/:orderId', async (req, res) => {
     if (!req.session?.userId) return res.redirect('/login');
     try {
-        const Message = require('./models/Message');
+        const Message = require('./models/message');
         const order = await Order.findById(req.params.orderId)
             .populate('customerId', 'name profileImage phone')
             .populate('labourId', 'name profileImage phone');
@@ -465,7 +465,7 @@ app.get('/chat/:orderId', async (req, res) => {
 app.post('/chat/:orderId/send', async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ success: false, message: 'Not logged in' });
     try {
-        const Message = require('./models/Message');
+        const Message = require('./models/message');
         const order = await Order.findById(req.params.orderId);
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
@@ -494,7 +494,7 @@ app.post('/chat/:orderId/send', async (req, res) => {
 app.get('/chat/:orderId/poll', async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ success: false });
     try {
-        const Message = require('./models/Message');
+        const Message = require('./models/message');
         const order = await Order.findById(req.params.orderId).select('status customerId labourId');
         if (!order) return res.status(404).json({ success: false });
 

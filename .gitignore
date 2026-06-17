@@ -1,2 +1,5 @@
 .env
 node_modules
+seed.js
+seedmore.js
+views.zip
