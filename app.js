@@ -522,43 +522,106 @@ app.get('/chat/:orderId/poll', async (req, res) => {
 
 // Leave Review for Professional
 app.post('/leave-review', async (req, res) => {
+
     if (!req.session?.userId) {
-        return res.status(401).json({ success: false, message: 'Please login to leave a review' });
+        return res.status(401).json({
+            success: false,
+            message: 'Please login to leave a review'
+        });
     }
 
     try {
-        const { professionalId, rating, comment, orderId } = req.body;
-        
-        await Order.findByIdAndUpdate(orderId, {
-            customerRating: parseInt(rating),
-            customerReview: comment,
-            reviewDate: new Date()
+
+        const {
+            professionalId,
+            rating,
+            comment,
+            orderId
+        } = req.body;
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating must be between 1 and 5'
+            });
+        }
+
+        const order = await Order.findById(orderId);
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (order.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized review'
+            });
+        }
+
+        if (order.customerRating) {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already reviewed this order'
+            });
+        }
+
+        order.customerRating = parseInt(rating);
+        order.customerReview = comment;
+        order.reviewDate = new Date();
+
+        await order.save();
+
+        const professionalReviews = await Order.find({
+            labourId: professionalId,
+            customerRating: { $exists: true }
         });
 
-        const professionalReviews = await Order.find({ 
-            labourId: professionalId, 
-            customerRating: { $exists: true } 
-        });
-        
-        const averageRating = professionalReviews.reduce((sum, review) => sum + review.customerRating, 0) / professionalReviews.length;
         const totalReviews = professionalReviews.length;
 
-        await User.findByIdAndUpdate(professionalId, {
-            rating: parseFloat(averageRating.toFixed(1)),
-            totalReviews: totalReviews
-        });
+        const averageRating =
+            totalReviews > 0
+                ? professionalReviews.reduce(
+                    (sum, review) => sum + review.customerRating,
+                    0
+                ) / totalReviews
+                : 0;
 
-        res.json({ 
-            success: true, 
+        await User.findByIdAndUpdate(
+            professionalId,
+            {
+                rating: Number(
+                    averageRating.toFixed(1)
+                ),
+                totalReviews
+            }
+        );
+
+        res.json({
+            success: true,
             message: 'Review submitted successfully!',
             averageRating: averageRating.toFixed(1),
-            totalReviews: totalReviews
+            totalReviews
         });
+
     } catch (error) {
-        console.error('Error leaving review:', error);
-        res.status(500).json({ success: false, message: 'Error submitting review' });
+
+        console.error(
+            'Error leaving review:',
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: 'Error submitting review'
+        });
     }
 });
+
+
 
 // Customer Profile
 app.get('/profile/customer', async (req, res) => {
@@ -711,56 +774,126 @@ app.post('/update-profile', upload.single('profileImage'), async (req, res) => {
 // ==================== LABOUR MANAGEMENT ROUTES ====================
 
 // Find Labour Page
+
 app.get('/find-labour', async (req, res) => {
     try {
-        const { search, profession, minRating, maxPrice, sortBy } = req.query;
-        
-        let filter = { userType: 'labour', isActive: true };
-        
+
+        const {
+            search,
+            profession,
+            minRating,
+            maxPrice,
+            sortBy,
+            latitude,
+            longitude
+        } = req.query;
+
+        let filter = {
+            userType: 'labour',
+            isActive: true
+        };
+
         if (search) {
             filter.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { profession: { $regex: search, $options: 'i' } },
-                { 'address.city': { $regex: search, $options: 'i' } }
+                {
+                    name: {
+                        $regex: search,
+                        $options: 'i'
+                    }
+                },
+                {
+                    profession: {
+                        $regex: search,
+                        $options: 'i'
+                    }
+                },
+                {
+                    'address.city': {
+                        $regex: search,
+                        $options: 'i'
+                    }
+                }
             ];
         }
-        
+
         if (profession && profession !== 'all') {
             filter.profession = profession;
         }
-        
+
         if (minRating) {
-            filter.rating = { $gte: parseFloat(minRating) };
+            filter.rating = {
+                $gte: parseFloat(minRating)
+            };
         }
-        
+
         if (maxPrice) {
-            filter.$or = [
-                { wagePerHour: { $lte: parseFloat(maxPrice) } },
-                { wagePerDay: { $lte: parseFloat(maxPrice) } }
-            ];
+            filter.wagePerHour = {
+                $lte: parseFloat(maxPrice)
+            };
         }
-        
-        let sortOptions = {};
-        switch(sortBy) {
-            case 'rating':
-                sortOptions = { rating: -1 };
-                break;
-            case 'price-low':
-                sortOptions = { wagePerHour: 1 };
-                break;
-            case 'price-high':
-                sortOptions = { wagePerHour: -1 };
-                break;
-            case 'experience':
-                sortOptions = { rating: -1 };
-                break;
-            default:
-                sortOptions = { rating: -1, totalReviews: -1 };
+
+        let labours;
+
+        // =========================
+        // NEAREST WORKER ALGORITHM
+        // =========================
+
+        if (latitude && longitude) {
+
+            labours = await User.aggregate([
+                {
+                    $geoNear: {
+                        near: {
+                            type: "Point",
+                            coordinates: [
+                                parseFloat(longitude),
+                                parseFloat(latitude)
+                            ]
+                        },
+                        distanceField: "distance",
+                        spherical: true,
+                        query: filter
+                    }
+                }
+            ]);
+
+        } else {
+
+            let sortOptions = {};
+
+            switch (sortBy) {
+
+                case 'rating':
+                    sortOptions = { rating: -1 };
+                    break;
+
+                case 'price-low':
+                    sortOptions = { wagePerHour: 1 };
+                    break;
+
+                case 'price-high':
+                    sortOptions = { wagePerHour: -1 };
+                    break;
+
+                default:
+                    sortOptions = {
+                        rating: -1,
+                        totalReviews: -1
+                    };
+            }
+
+            labours = await User
+                .find(filter)
+                .sort(sortOptions);
         }
-        
-        const labours = await User.find(filter).sort(sortOptions);
-        const professions = await User.distinct('profession', { userType: 'labour' });
-        
+
+        const professions = await User.distinct(
+            'profession',
+            {
+                userType: 'labour'
+            }
+        );
+
         res.render('findLabour', {
             labours,
             professions,
@@ -771,17 +904,24 @@ app.get('/find-labour', async (req, res) => {
                 maxPrice: maxPrice || '',
                 sortBy: sortBy || 'rating'
             },
-            user: req.session?.userId ? await User.findById(req.session.userId) : null
+            user: req.session?.userId
+                ? await User.findById(req.session.userId)
+                : null
         });
-        
+
     } catch (error) {
-        console.error('Error finding labour:', error);
-        res.status(500).render('error', { 
+
+        console.error(error);
+
+        res.status(500).render('error', {
             error: 'Error loading labour search page',
-            user: req.session?.userId ? await User.findById(req.session.userId) : null
+            user: req.session?.userId
+                ? await User.findById(req.session.userId)
+                : null
         });
     }
 });
+
 
 // Labour Detail Page
 app.get('/labour/:id', async (req, res) => {

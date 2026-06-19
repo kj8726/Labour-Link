@@ -407,8 +407,12 @@
 }
 
 .review-rating .fa-star {
-    color: #ffc107;
+    color: #ddd;
     font-size: 0.9rem;
+}
+
+.review-rating .fa-star.active {
+    color: #ffc107;
 }
 
 .review-date {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="/css/calculator.css">
 </head>
+
 <body>
     <!-- Header -->
     <header class="find-labour-header">
@@ -53,9 +55,9 @@
                                 <div class="filter-group">
                                     <label class="form-label">Search</label>
                                     <div class="input-group">
-                                        <input type="text" class="form-control" name="search" 
-                                               placeholder="Name, profession, or city..." 
-                                               value="<%= searchParams.search %>">
+                                        <input type="text" class="form-control" name="search"
+                                            placeholder="Name, profession, or city..."
+                                            value="<%= searchParams.search %>">
                                         <button class="btn btn-outline-primary" type="submit">
                                             <i class="fas fa-search"></i>
                                         </button>
@@ -68,11 +70,11 @@
                                     <select class="form-select" name="profession">
                                         <option value="all">All Professions</option>
                                         <% professions.forEach(function(prof) { %>
-                                            <option value="<%= prof %>" 
-                                                    <%= searchParams.profession === prof ? 'selected' : '' %>>
+                                            <option value="<%= prof %>" <%=searchParams.profession===prof ? 'selected'
+                                                : '' %>>
                                                 <%= prof %>
                                             </option>
-                                        <% }); %>
+                                            <% }); %>
                                     </select>
                                 </div>
 
@@ -81,40 +83,57 @@
                                     <label class="form-label">Minimum Rating</label>
                                     <select class="form-select" name="minRating">
                                         <option value="">Any Rating</option>
-                                        <option value="4.5" <%= searchParams.minRating === '4.5' ? 'selected' : '' %>>4.5+ Stars</option>
-                                        <option value="4.0" <%= searchParams.minRating === '4.0' ? 'selected' : '' %>>4.0+ Stars</option>
-                                        <option value="3.5" <%= searchParams.minRating === '3.5' ? 'selected' : '' %>>3.5+ Stars</option>
-                                        <option value="3.0" <%= searchParams.minRating === '3.0' ? 'selected' : '' %>>3.0+ Stars</option>
+                                        <option value="4.5" <%=searchParams.minRating==='4.5' ? 'selected' : '' %>>4.5+
+                                            Stars</option>
+                                        <option value="4.0" <%=searchParams.minRating==='4.0' ? 'selected' : '' %>>4.0+
+                                            Stars</option>
+                                        <option value="3.5" <%=searchParams.minRating==='3.5' ? 'selected' : '' %>>3.5+
+                                            Stars</option>
+                                        <option value="3.0" <%=searchParams.minRating==='3.0' ? 'selected' : '' %>>3.0+
+                                            Stars</option>
                                     </select>
                                 </div>
 
                                 <!-- Price Filter -->
                                 <div class="filter-group">
                                     <label class="form-label">Max Hourly Rate ($)</label>
-                                    <input type="number" class="form-control" name="maxPrice" 
-                                           placeholder="e.g., 50" value="<%= searchParams.maxPrice %>"
-                                           min="1" max="1000">
+                                    <input type="number" class="form-control" name="maxPrice" placeholder="e.g., 50"
+                                        value="<%= searchParams.maxPrice %>" min="1" max="1000">
                                 </div>
 
                                 <!-- Sort Options -->
                                 <div class="filter-group">
                                     <label class="form-label">Sort By</label>
                                     <select class="form-select" name="sortBy">
-                                        <option value="rating" <%= searchParams.sortBy === 'rating' ? 'selected' : '' %>>Highest Rated</option>
-                                        <option value="price-low" <%= searchParams.sortBy === 'price-low' ? 'selected' : '' %>>Price: Low to High</option>
-                                        <option value="price-high" <%= searchParams.sortBy === 'price-high' ? 'selected' : '' %>>Price: High to Low</option>
-                                        <option value="experience" <%= searchParams.sortBy === 'experience' ? 'selected' : '' %>>Most Experienced</option>
+                                        <option value="rating" <%=searchParams.sortBy==='rating' ? 'selected' : '' %>
+                                            >Highest Rated</option>
+                                        <option value="price-low" <%=searchParams.sortBy==='price-low' ? 'selected' : ''
+                                            %>>Price: Low to High</option>
+                                        <option value="price-high" <%=searchParams.sortBy==='price-high' ? 'selected'
+                                            : '' %>>Price: High to Low</option>
+                                        <option value="experience" <%=searchParams.sortBy==='experience' ? 'selected'
+                                            : '' %>>Most Experienced</option>
                                     </select>
                                 </div>
 
                                 <!-- Filter Actions -->
                                 <div class="filter-actions">
+
+                                    <button type="button" class="btn btn-success w-100 mb-2" id="findNearbyBtn">
+
+                                        <i class="fas fa-location-arrow me-2"></i>
+                                        Find Nearby Workers
+
+                                    </button>
+
                                     <button type="submit" class="btn btn-primary w-100 mb-2">
                                         <i class="fas fa-search me-2"></i>Apply Filters
                                     </button>
+
                                     <a href="/find-labour" class="btn btn-outline-secondary w-100">
                                         <i class="fas fa-times me-2"></i>Clear All
                                     </a>
+
                                 </div>
                             </form>
                         </div>
@@ -129,17 +148,19 @@
                             <div class="stats">
                                 <div class="stat-item">
                                     <span class="stat-label">Professionals Found</span>
-                                    <span class="stat-value"><%= labours.length %></span>
+                                    <span class="stat-value">
+                                        <%= labours.length %>
+                                    </span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">Average Rating</span>
                                     <span class="stat-value">
-                                        <% 
-                                            const avgRating = labours.length > 0 ? 
-                                                (labours.reduce((sum, labour) => sum + labour.rating, 0) / labours.length).toFixed(1) : 
-                                                '0.0';
-                                        %>
-                                        <%= avgRating %>
+                                        <% const avgRating=labours.length> 0 ?
+                                            (labours.reduce((sum, labour) => sum + labour.rating, 0) /
+                                            labours.length).toFixed(1) :
+                                            '0.0';
+                                            %>
+                                            <%= avgRating %>
                                     </span>
                                 </div>
                             </div>
@@ -160,7 +181,7 @@
                                     <small class="text-muted">
                                         (<%= labours.length %> results found)
                                     </small>
-                                <% } %>
+                                    <% } %>
                             </h2>
                             <div class="view-options">
                                 <button class="btn btn-outline-secondary active" id="gridView">
@@ -175,47 +196,57 @@
 
                     <!-- Labour Cards Grid -->
                     <div class="labour-grid" id="labourGrid">
-                        <% if (labours.length > 0) { %>
+                        <% if (labours.length> 0) { %>
                             <% labours.forEach(function(labour) { %>
                                 <div class="labour-card">
                                     <div class="card h-100">
                                         <div class="labour-card-header">
-                                            <img src="<%= labour.profileImage || '/images/default-labour.png' %>" 
-                                                 alt="<%= labour.name %>" 
-                                                 class="labour-profile-img">
+                                            <img src="<%= labour.profileImage || '/images/default-labour.png' %>"
+                                                alt="<%= labour.name %>" class="labour-profile-img">
                                             <div class="online-indicator <%= Math.random() > 0.5 ? 'online' : 'offline' %>"
-                                                 title="<%= Math.random() > 0.5 ? 'Online' : 'Offline' %>">
+                                                title="<%= Math.random() > 0.5 ? 'Online' : 'Offline' %>">
                                             </div>
                                         </div>
                                         <div class="card-body">
                                             <div class="labour-info">
-                                                <h5 class="labour-name"><%= labour.name %></h5>
+                                                <h5 class="labour-name">
+                                                    <%= labour.name %>
+                                                </h5>
                                                 <span class="labour-profession badge bg-primary">
                                                     <%= labour.profession %>
                                                 </span>
                                                 <p class="labour-location text-muted">
                                                     <i class="fas fa-map-marker-alt me-1"></i>
-                                                    <%= labour.address.city %>, <%= labour.address.state %>
+                                                    <%= labour.address?.city || 'Unknown City' %>,
+                                                        <%= labour.address?.state || 'Unknown State' %>
                                                 </p>
+
+                                                <% if (labour.distance) { %>
+                                                    <p class="text-success fw-bold">
+                                                        <i class="fas fa-location-dot me-1"></i>
+                                                        <%= (labour.distance / 1000).toFixed(2) %> km away
+                                                    </p>
+                                                    <% } %>
                                             </div>
-                                            
+
                                             <div class="labour-rating">
                                                 <div class="stars">
-                                                    <% for(let i = 1; i <= 5; i++) { %>
-                                                        <% if(i <= Math.floor(labour.rating)) { %>
+                                                    <% for(let i=1; i <=5; i++) { %>
+                                                        <% if(i <=Math.floor(labour.rating)) { %>
                                                             <i class="fas fa-star"></i>
-                                                        <% } else if(i === Math.ceil(labour.rating) && labour.rating % 1 !== 0) { %>
-                                                            <i class="fas fa-star-half-alt"></i>
-                                                        <% } else { %>
-                                                            <i class="far fa-star"></i>
-                                                        <% } %>
-                                                    <% } %>
+                                                            <% } else if(i===Math.ceil(labour.rating) && labour.rating %
+                                                                1 !==0) { %>
+                                                                <i class="fas fa-star-half-alt"></i>
+                                                                <% } else { %>
+                                                                    <i class="far fa-star"></i>
+                                                                    <% } %>
+                                                                        <% } %>
                                                 </div>
                                                 <span class="rating-text">
                                                     <%= labour.rating %> (<%= labour.totalReviews %> reviews)
                                                 </span>
                                             </div>
-                                            
+
                                             <div class="labour-pricing">
                                                 <div class="price-item">
                                                     <span class="price-label">Hourly Rate:</span>
@@ -226,7 +257,7 @@
                                                     <span class="price-value">$<%= labour.wagePerDay %></span>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="labour-experience">
                                                 <i class="fas fa-briefcase me-1"></i>
                                                 <%= labour.experience %> experience
@@ -238,34 +269,34 @@
                                                     <i class="fas fa-eye me-2"></i>View Profile
                                                 </a>
                                                 <a href="/professional/<%= labour._id %>" class="stretched-link"></a>
-                                                <button class="btn btn-outline-success contact-btn" 
-                                                        data-labour-id="<%= labour._id %>"
-                                                        data-labour-name="<%= labour.name %>">
+                                                <button class="btn btn-outline-success contact-btn"
+                                                    data-labour-id="<%= labour._id %>"
+                                                    data-labour-name="<%= labour.name %>">
                                                     <i class="fas fa-phone me-2"></i>Contact
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            <% }); %>
-                        <% } else { %>
-                            <div class="no-results text-center py-5">
-                                <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                                <h3>No Professionals Found</h3>
-                                <p class="text-muted">Try adjusting your search criteria or filters</p>
-                                <a href="/find-labour" class="btn btn-primary">Clear All Filters</a>
-                            </div>
-                        <% } %>
+                                <% }); %>
+                                    <% } else { %>
+                                        <div class="no-results text-center py-5">
+                                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                                            <h3>No Professionals Found</h3>
+                                            <p class="text-muted">Try adjusting your search criteria or filters</p>
+                                            <a href="/find-labour" class="btn btn-primary">Clear All Filters</a>
+                                        </div>
+                                        <% } %>
                     </div>
 
                     <!-- Load More Button (for pagination) -->
-                    <% if (labours.length > 0) { %>
+                    <% if (labours.length> 0) { %>
                         <div class="text-center mt-4">
                             <button class="btn btn-outline-primary" id="loadMore">
                                 <i class="fas fa-plus me-2"></i>Load More Professionals
                             </button>
                         </div>
-                    <% } %>
+                        <% } %>
                 </div>
             </div>
         </div>
@@ -323,41 +354,97 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // View Toggle
             const gridView = document.getElementById('gridView');
             const listView = document.getElementById('listView');
             const labourGrid = document.getElementById('labourGrid');
 
-            gridView.addEventListener('click', function() {
+            gridView.addEventListener('click', function () {
                 labourGrid.classList.remove('list-view');
                 labourGrid.classList.add('grid-view');
                 gridView.classList.add('active');
                 listView.classList.remove('active');
             });
 
-            listView.addEventListener('click', function() {
+            listView.addEventListener('click', function () {
                 labourGrid.classList.remove('grid-view');
                 labourGrid.classList.add('list-view');
                 listView.classList.add('active');
                 gridView.classList.remove('active');
             });
+            // ======================
+            // FIND NEAREST WORKERS
+            // ======================
 
+            const nearbyBtn =
+                document.getElementById('findNearbyBtn');
+
+            if (nearbyBtn) {
+
+                nearbyBtn.addEventListener('click', () => {
+
+                    if (!navigator.geolocation) {
+
+                        alert(
+                            'Geolocation not supported'
+                        );
+
+                        return;
+                    }
+
+                    nearbyBtn.innerHTML =
+                        '<i class="fas fa-spinner fa-spin me-2"></i>Locating...';
+
+                    navigator.geolocation.getCurrentPosition(
+
+                        (position) => {
+
+                            const latitude =
+                                position.coords.latitude;
+
+                            const longitude =
+                                position.coords.longitude;
+
+                            const profession =
+                                document.querySelector(
+                                    'select[name="profession"]'
+                                ).value;
+
+                            window.location.href =
+                                `/find-labour?latitude=${latitude}&longitude=${longitude}&profession=${profession}`;
+                        },
+
+                        (error) => {
+
+                            nearbyBtn.innerHTML =
+                                '<i class="fas fa-location-arrow me-2"></i>Find Nearby Workers';
+
+                            alert(
+                                'Please allow location access'
+                            );
+                        }
+
+                    );
+
+                });
+
+            }
             // Contact Modal
             const contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
             const contactBtns = document.querySelectorAll('.contact-btn');
 
             contactBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     const labourId = this.getAttribute('data-labour-id');
                     const labourName = this.getAttribute('data-labour-name');
-                    
+
                     document.getElementById('modalLabourName').textContent = labourName;
-                    
+
                     // In a real app, you'd fetch labour details via AJAX
                     // For now, we'll simulate it
                     fetchLabourContactInfo(labourId);
-                    
+
                     contactModal.show();
                 });
             });
@@ -367,7 +454,7 @@
                 setTimeout(() => {
                     document.getElementById('modalLabourPhone').textContent = '+91-98765XXXXX';
                     document.getElementById('modalLabourEmail').textContent = 'professional@example.com';
-                    
+
                     const callButton = document.getElementById('callButton');
                     callButton.href = 'tel:+919876543210';
                 }, 500);
@@ -376,10 +463,10 @@
             // Load More functionality
             const loadMoreBtn = document.getElementById('loadMore');
             if (loadMoreBtn) {
-                loadMoreBtn.addEventListener('click', function() {
+                loadMoreBtn.addEventListener('click', function () {
                     this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
                     this.disabled = true;
-                    
+
                     // Simulate loading more data
                     setTimeout(() => {
                         alert('In a real application, this would load more professionals from the server.');
@@ -392,7 +479,7 @@
             // Auto-submit form when certain filters change
             const autoSubmitFilters = document.querySelectorAll('select[name="profession"], select[name="minRating"], select[name="sortBy"]');
             autoSubmitFilters.forEach(select => {
-                select.addEventListener('change', function() {
+                select.addEventListener('change', function () {
                     document.getElementById('filterForm').submit();
                 });
             });
@@ -400,4 +487,5 @@
     </script>
     <script src="/js/calculator.js"></script>
 </body>
+
 </html>
