@@ -198,9 +198,18 @@
 
                 <!-- Reviews Section -->
                 <section class="profile-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-star me-2"></i>Customer Reviews (<%= totalReviews %>)
-                    </h3>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <h3 class="section-title">
+                            <i class="fas fa-star me-2"></i>Customer Reviews (<%= totalReviews %>)
+                        </h3>
+                        <% if (reviews.length > 0) { %>
+                            <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Sort reviews">
+                                <a href="?sort=recent" class="btn btn-outline-secondary <%= reviewSort === 'recent' ? 'active' : '' %>">Most Recent</a>
+                                <a href="?sort=highest" class="btn btn-outline-secondary <%= reviewSort === 'highest' ? 'active' : '' %>">Highest Rated</a>
+                                <a href="?sort=lowest" class="btn btn-outline-secondary <%= reviewSort === 'lowest' ? 'active' : '' %>">Lowest Rated</a>
+                            </div>
+                        <% } %>
+                    </div>
                     
                     <!-- Overall Rating Summary -->
                     <div class="rating-summary">
@@ -238,7 +247,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <span class="review-date"><%= review.reviewDate ? review.reviewDate.toLocaleDateString() : review.completedDate.toLocaleDateString() %></span>
+                                    <span class="review-date"><%= (review.reviewDate || review.completedDate || review.createdAt).toLocaleDateString() %></span>
                                 </div>
                                 <p class="review-comment"><%= review.customerReview %></p>
                             </div>

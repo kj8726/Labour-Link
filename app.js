@@ -9,6 +9,8 @@ const session = require('express-session');
 const connectDB = require('./models/connection');
 const User = require('./models/User');
 const Order = require('./models/Order');
+const JobPost = require('./models/JobPost');
+const Notification = require('./models/Notification');
 const Work = require('./models/Work');
 const bcrypt = require('bcryptjs');
 const { workUpload } = require("./config/multer");
@@ -85,11 +87,27 @@ app.get('/home', async (req, res) => {
         })
         .select('name profession rating location profileImage wagePerHour _id');
 
-        const recentJobs = await Order.find({ status: 'pending' })
-            .populate('customerId', 'name')
-            .populate('labourId', 'name profession')
-            .sort({ createdAt: -1 })
-            .limit(6);
+        const homeUser = req.session?.userId ? await User.findById(req.session.userId) : null;
+
+        // Public job board postings — visible to logged-out visitors and to
+        // workers (their own profession plus general/any-profession posts).
+        // Not shown to customers.
+        let publicJobPosts = [];
+        if (!homeUser || homeUser.userType === 'labour') {
+            await JobPost.updateMany(
+                { status: 'open', expiresAt: { $lte: new Date() } },
+                { $set: { status: 'expired' } }
+            );
+
+            const jobPostQuery = { status: 'open' };
+            if (homeUser && homeUser.userType === 'labour') {
+                jobPostQuery.$or = [{ profession: homeUser.profession }, { profession: null }];
+            }
+            publicJobPosts = await JobPost.find(jobPostQuery)
+                .populate('customerId', 'name')
+                .sort({ createdAt: -1 })
+                .limit(6);
+        }
 
         const totalLabours = await User.countDocuments({ userType: 'labour', isActive: true });
         const totalCustomers = await User.countDocuments({ userType: 'customer', isActive: true });
@@ -109,21 +127,21 @@ app.get('/home', async (req, res) => {
         res.render('home', {
             featuredLabours,
             allLabours: JSON.stringify(allLabours),
-            recentJobs,
+            publicJobPosts,
             stats: {
                 totalLabours,
                 totalCustomers,
                 completedJobs
             },
             professionCounts,
-            user: req.session?.userId ? await User.findById(req.session.userId) : null
+            user: homeUser
         });
     } catch (error) {
         console.error('Error loading home page:', error);
         res.render('home', { 
             featuredLabours: [],
             allLabours: '[]',
-            recentJobs: [],
+            publicJobPosts: [],
             stats: { totalLabours: 0, totalCustomers: 0, completedJobs: 0 },
             professionCounts: {},
             user: null
@@ -171,7 +189,11 @@ app.post('/login', async (req, res) => {
                 res.redirect('/profile/labour');
             }
         } else {
-            res.render('login', { error: 'Invalid email or password' });
+            res.render('login', {
+                error: 'Invalid email or password. Please check your details and try again.',
+                preSelectUserType: user ? user.userType : null,
+                loginEmail: email
+            });
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -302,12 +324,22 @@ app.get('/professional/:id', async (req, res) => {
             .sort({ completedDate: -1 })
             .limit(10);
 
+        const reviewSort = ['recent', 'highest', 'lowest'].includes(req.query.sort)
+            ? req.query.sort
+            : 'recent';
+
+        const reviewSortOptions = {
+            recent: { completedDate: -1 },
+            highest: { customerRating: -1, completedDate: -1 },
+            lowest: { customerRating: 1, completedDate: -1 }
+        };
+
         const reviews = await Order.find({ 
             labourId: req.params.id, 
             customerRating: { $exists: true, $ne: null } 
         })
         .populate('customerId', 'name profileImage')
-        .sort({ completedDate: -1 })
+        .sort(reviewSortOptions[reviewSort])
         .limit(20);
 
         const averageRating = reviews.length > 0 
@@ -330,6 +362,7 @@ app.get('/professional/:id', async (req, res) => {
             reviews,
             averageRating,
             totalReviews: reviews.length,
+            reviewSort,
             similarProfessionals,
             user: req.session?.userId ? await User.findById(req.session.userId) : null,
             isOwner: req.session?.userId?.toString() === req.params.id
@@ -378,6 +411,537 @@ app.post('/contact-professional', async (req, res) => {
     } catch (error) {
         console.error('Error contacting professional:', error);
         res.status(500).json({ success: false, message: 'Error sending request' });
+    }
+});
+
+// ==================== PUBLIC JOB BOARD ====================
+
+// Auto-expire job posts whose expiresAt has passed. Called lazily before
+// any read of job posts rather than on a cron — keeps this simple and
+// serverless-friendly (no background worker needed).
+async function expireStaleJobPosts(filter = {}) {
+    await JobPost.updateMany(
+        { status: 'open', expiresAt: { $lte: new Date() }, ...filter },
+        { $set: { status: 'expired' } }
+    );
+}
+
+async function notify(userId, type, message, link, jobPostId) {
+    try {
+        await Notification.create({ userId, type, message, link, jobPostId });
+    } catch (error) {
+        console.error('Error creating notification:', error);
+    }
+}
+
+// Help & Support — content adapts based on whether the visitor is a
+// logged-in customer, a logged-in worker, or not logged in at all.
+app.get('/help', async (req, res) => {
+    try {
+        const user = req.session?.userId ? await User.findById(req.session.userId) : null;
+        res.render('help', { user });
+    } catch (error) {
+        console.error('Error loading help page:', error);
+        res.render('help', { user: null });
+    }
+});
+
+// Form to create a public job post (customer only)
+app.get('/post-job', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.redirect('/login');
+    }
+
+    const user = await User.findById(req.session.userId);
+    if (!user || user.userType !== 'customer') {
+        return res.redirect('/profile/labour');
+    }
+
+    res.render('postJob', {
+        professions: JobPost.PROFESSIONS,
+        user,
+        editPost: null
+    });
+});
+
+// Form to edit an existing job post (customer, own post, still open only)
+app.get('/jobs/:id/edit', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.redirect('/login');
+    }
+
+    try {
+        const user = await User.findById(req.session.userId);
+        const jobPost = await JobPost.findById(req.params.id);
+
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(404).render('404', { user });
+        }
+
+        if (jobPost.status !== 'open') {
+            return res.redirect(`/jobs/${jobPost._id}/responses`);
+        }
+
+        res.render('postJob', {
+            professions: JobPost.PROFESSIONS,
+            user,
+            editPost: jobPost
+        });
+    } catch (error) {
+        console.error('Error loading job post for edit:', error);
+        res.status(500).render('error', { error: 'Error loading job post', user: null });
+    }
+});
+
+// Public job board listing — any logged-in worker can browse all open posts
+// (not just their own profession), useful as a dedicated "browse jobs" page.
+app.get('/jobs', async (req, res) => {
+    try {
+        const user = req.session?.userId ? await User.findById(req.session.userId) : null;
+
+        await expireStaleJobPosts();
+
+        const query = { status: 'open' };
+        if (req.query.profession && req.query.profession !== 'all') {
+            // Show posts for that exact profession PLUS general (no-profession) posts
+            query.$or = [{ profession: req.query.profession }, { profession: null }];
+        }
+
+        const jobPosts = await JobPost.find(query)
+            .populate('customerId', 'name')
+            .sort({ createdAt: -1 });
+
+        res.render('jobBoard', {
+            jobPosts,
+            professions: JobPost.PROFESSIONS,
+            selectedProfession: req.query.profession || 'all',
+            user
+        });
+    } catch (error) {
+        console.error('Error loading job board:', error);
+        res.status(500).render('error', { error: 'Error loading job board', user: null });
+    }
+});
+
+// Create a public job post (customer only). Profession is optional —
+// leaving it blank makes this a general request visible to every worker.
+app.post('/jobs/create', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login to post a job' });
+    }
+
+    try {
+        const user = await User.findById(req.session.userId);
+        if (!user || user.userType !== 'customer') {
+            return res.status(403).json({ success: false, message: 'Only customers can post public jobs' });
+        }
+
+        const { title, description, profession, budget, workersNeeded, street, city, state, zipCode } = req.body;
+
+        if (!title) {
+            return res.status(400).json({ success: false, message: 'Title is required' });
+        }
+
+        let cleanProfession = null;
+        if (profession && profession !== 'all' && profession !== '') {
+            if (!JobPost.PROFESSIONS.includes(profession)) {
+                return res.status(400).json({ success: false, message: 'Invalid profession' });
+            }
+            cleanProfession = profession;
+        }
+
+        const jobPost = new JobPost({
+            customerId: user._id,
+            title,
+            description,
+            profession: cleanProfession,
+            budget: budget ? parseFloat(budget) : null,
+            workersNeeded: workersNeeded ? Math.max(1, parseInt(workersNeeded)) : 1,
+            address: { street, city, state, zipCode }
+        });
+
+        await jobPost.save();
+
+        // Notify workers whose profession matches (or all active workers, for a general request)
+        const matchQuery = { userType: 'labour', isActive: true };
+        if (cleanProfession) matchQuery.profession = cleanProfession;
+        const matchingWorkers = await User.find(matchQuery).select('_id').limit(200);
+
+        await Promise.all(matchingWorkers.map(w =>
+            notify(
+                w._id,
+                'new_job_match',
+                `New job posted: "${title}"${cleanProfession ? '' : ' (open to all professions)'}`,
+                '/jobs',
+                jobPost._id
+            )
+        ));
+
+        res.json({ success: true, message: 'Job posted successfully!', jobPostId: jobPost._id });
+    } catch (error) {
+        console.error('Error creating job post:', error);
+        res.status(500).json({ success: false, message: 'Error posting job' });
+    }
+});
+
+// Update an existing job post (customer, own post, still open only)
+app.post('/jobs/:id/edit', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login first' });
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (jobPost.status !== 'open') {
+            return res.status(400).json({ success: false, message: 'Only open job posts can be edited' });
+        }
+
+        const { title, description, profession, budget, workersNeeded, street, city, state, zipCode } = req.body;
+
+        if (!title) {
+            return res.status(400).json({ success: false, message: 'Title is required' });
+        }
+
+        let cleanProfession = null;
+        if (profession && profession !== 'all' && profession !== '') {
+            if (!JobPost.PROFESSIONS.includes(profession)) {
+                return res.status(400).json({ success: false, message: 'Invalid profession' });
+            }
+            cleanProfession = profession;
+        }
+
+        jobPost.title = title;
+        jobPost.description = description;
+        jobPost.profession = cleanProfession;
+        jobPost.budget = budget ? parseFloat(budget) : null;
+        jobPost.workersNeeded = workersNeeded ? Math.max(1, parseInt(workersNeeded)) : 1;
+        jobPost.address = { street, city, state, zipCode };
+
+        await jobPost.save();
+
+        res.json({ success: true, message: 'Job post updated!', jobPostId: jobPost._id });
+    } catch (error) {
+        console.error('Error editing job post:', error);
+        res.status(500).json({ success: false, message: 'Error updating job post' });
+    }
+});
+
+// Customer closes/cancels their own job post without hiring anyone
+app.post('/jobs/:id/cancel', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login first' });
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (jobPost.status !== 'open') {
+            return res.status(400).json({ success: false, message: 'This job post is not open' });
+        }
+
+        jobPost.status = 'cancelled';
+        await jobPost.save();
+
+        res.json({ success: true, message: 'Job post cancelled.' });
+    } catch (error) {
+        console.error('Error cancelling job post:', error);
+        res.status(500).json({ success: false, message: 'Error cancelling job post' });
+    }
+});
+
+// Worker responds to / expresses interest in a public job post, optionally
+// with a message (e.g. availability, quote, or a clarifying question).
+app.post('/jobs/:id/respond', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login to respond to jobs' });
+    }
+
+    try {
+        const user = await User.findById(req.session.userId);
+        if (!user || user.userType !== 'labour') {
+            return res.status(403).json({ success: false, message: 'Only professionals can respond to job posts' });
+        }
+
+        // Require a minimally complete profile before a worker can apply publicly —
+        // cuts down on empty/spam profiles flooding customers with responses.
+        if (!user.profession || !user.profileImage) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please complete your profile (profession and a profile photo) before applying to jobs'
+            });
+        }
+
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost) {
+            return res.status(404).json({ success: false, message: 'Job post not found' });
+        }
+
+        if (jobPost.status !== 'open' || jobPost.expiresAt <= new Date()) {
+            if (jobPost.status === 'open') {
+                jobPost.status = 'expired';
+                await jobPost.save();
+            }
+            return res.status(400).json({ success: false, message: 'This job is no longer open' });
+        }
+
+        const alreadyResponded = jobPost.responses.some(
+            r => r.labourId.toString() === user._id.toString()
+        );
+        if (alreadyResponded) {
+            return res.status(400).json({ success: false, message: 'You have already responded to this job' });
+        }
+
+        const message = (req.body.message || '').toString().trim().slice(0, 500);
+
+        jobPost.responses.push({
+            labourId: user._id,
+            message
+        });
+
+        await jobPost.save();
+
+        await notify(
+            jobPost.customerId,
+            'new_response',
+            `${user.name} responded to your job "${jobPost.title}"`,
+            `/jobs/${jobPost._id}/responses`,
+            jobPost._id
+        );
+
+        res.json({ success: true, message: 'Response sent to the customer!' });
+    } catch (error) {
+        console.error('Error responding to job post:', error);
+        res.status(500).json({ success: false, message: 'Error sending response' });
+    }
+});
+
+// Customer views responses on their own job post
+app.get('/jobs/:id/responses', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.redirect('/login');
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id)
+            .populate('responses.labourId', 'name profession rating totalReviews profileImage wagePerHour');
+
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(404).render('404', { user: await User.findById(req.session.userId) });
+        }
+
+        res.render('jobResponses', {
+            jobPost,
+            user: await User.findById(req.session.userId)
+        });
+    } catch (error) {
+        console.error('Error loading job responses:', error);
+        res.status(500).render('error', { error: 'Error loading responses', user: null });
+    }
+});
+
+// Customer accepts a worker's response — converts it into a direct Order
+// request using the existing flow. Supports hiring more than one worker:
+// the post only fully closes once workersNeeded accepted responses are reached.
+app.post('/jobs/:id/accept/:labourId', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login first' });
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (jobPost.status !== 'open') {
+            return res.status(400).json({ success: false, message: 'This job post is not open' });
+        }
+
+        const response = jobPost.responses.find(
+            r => r.labourId.toString() === req.params.labourId
+        );
+        if (!response) {
+            return res.status(400).json({ success: false, message: 'This professional has not responded to this job' });
+        }
+        if (response.status !== 'pending') {
+            return res.status(400).json({ success: false, message: 'This response has already been handled' });
+        }
+
+        const order = new Order({
+            customerId: jobPost.customerId,
+            labourId: req.params.labourId,
+            service: jobPost.title,
+            description: jobPost.description,
+            amount: jobPost.budget,
+            address: jobPost.address,
+            status: 'pending'
+        });
+
+        await order.save();
+
+        response.status = 'accepted';
+        response.orderId = order._id;
+
+        const stillNeeded = jobPost.workersNeeded - jobPost.acceptedCount();
+        if (stillNeeded <= 0) {
+            jobPost.status = 'closed';
+        }
+
+        await jobPost.save();
+
+        await notify(
+            req.params.labourId,
+            'response_accepted',
+            `You were hired for "${jobPost.title}"! Check your requests.`,
+            '/orders',
+            jobPost._id
+        );
+
+        res.json({
+            success: true,
+            message: stillNeeded > 0
+                ? `Request sent! Still looking for ${stillNeeded} more worker(s).`
+                : 'Request sent! Job post closed.',
+            orderId: order._id
+        });
+    } catch (error) {
+        console.error('Error accepting job response:', error);
+        res.status(500).json({ success: false, message: 'Error accepting response' });
+    }
+});
+
+// Customer declines a worker's response without hiring them
+app.post('/jobs/:id/decline/:labourId', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login first' });
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost || jobPost.customerId.toString() !== req.session.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const response = jobPost.responses.find(
+            r => r.labourId.toString() === req.params.labourId
+        );
+        if (!response || response.status !== 'pending') {
+            return res.status(400).json({ success: false, message: 'Nothing to decline' });
+        }
+
+        response.status = 'declined';
+        await jobPost.save();
+
+        await notify(
+            req.params.labourId,
+            'response_declined',
+            `Your response to "${jobPost.title}" was not selected.`,
+            '/jobs',
+            jobPost._id
+        );
+
+        res.json({ success: true, message: 'Response declined.' });
+    } catch (error) {
+        console.error('Error declining job response:', error);
+        res.status(500).json({ success: false, message: 'Error declining response' });
+    }
+});
+
+// Report a job post (spam, inappropriate, etc.)
+app.post('/jobs/:id/report', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login to report a job' });
+    }
+
+    try {
+        const jobPost = await JobPost.findById(req.params.id);
+        if (!jobPost) {
+            return res.status(404).json({ success: false, message: 'Job post not found' });
+        }
+
+        const alreadyReported = jobPost.reports.some(
+            r => r.reportedBy.toString() === req.session.userId.toString()
+        );
+        if (alreadyReported) {
+            return res.status(400).json({ success: false, message: 'You have already reported this job post' });
+        }
+
+        jobPost.reports.push({
+            reportedBy: req.session.userId,
+            reason: (req.body.reason || '').toString().trim().slice(0, 300)
+        });
+
+        await jobPost.save();
+
+        res.json({ success: true, message: 'Thanks — this job post has been reported for review.' });
+    } catch (error) {
+        console.error('Error reporting job post:', error);
+        res.status(500).json({ success: false, message: 'Error reporting job post' });
+    }
+});
+
+// ==================== NOTIFICATIONS ====================
+
+app.get('/notifications', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login' });
+    }
+
+    try {
+        const notifications = await Notification.find({ userId: req.session.userId })
+            .sort({ createdAt: -1 })
+            .limit(30);
+
+        const unreadCount = await Notification.countDocuments({
+            userId: req.session.userId,
+            isRead: false
+        });
+
+        res.json({ success: true, notifications, unreadCount });
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        res.status(500).json({ success: false, message: 'Error loading notifications' });
+    }
+});
+
+app.post('/notifications/:id/read', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login' });
+    }
+
+    try {
+        await Notification.updateOne(
+            { _id: req.params.id, userId: req.session.userId },
+            { $set: { isRead: true } }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking notification read:', error);
+        res.status(500).json({ success: false, message: 'Error updating notification' });
+    }
+});
+
+app.post('/notifications/read-all', async (req, res) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ success: false, message: 'Please login' });
+    }
+
+    try {
+        await Notification.updateMany(
+            { userId: req.session.userId, isRead: false },
+            { $set: { isRead: true } }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking all notifications read:', error);
+        res.status(500).json({ success: false, message: 'Error updating notifications' });
     }
 });
 
@@ -562,6 +1126,13 @@ app.post('/leave-review', async (req, res) => {
             });
         }
 
+        if (order.status !== 'completed') {
+            return res.status(400).json({
+                success: false,
+                message: 'You can only review completed orders'
+            });
+        }
+
         if (order.customerRating) {
             return res.status(400).json({
                 success: false,
@@ -643,10 +1214,14 @@ app.get('/profile/customer', async (req, res) => {
         const orders = await Order.find({ customerId: req.session.userId })
             .populate('labourId', 'name profession profileImage')
             .sort({ createdAt: -1 });
-        
+
+        const myJobPosts = await JobPost.find({ customerId: req.session.userId })
+            .sort({ createdAt: -1 });
+
         res.render('customerProfile', { 
             customer: user, 
-            orders 
+            orders,
+            myJobPosts
         });
     } catch (error) {
         console.error('Error loading customer profile:', error);
@@ -785,8 +1360,13 @@ app.get('/find-labour', async (req, res) => {
             maxPrice,
             sortBy,
             latitude,
-            longitude
+            longitude,
+            page
         } = req.query;
+
+        const PAGE_SIZE = 20;
+        const currentPage = Math.max(1, parseInt(page) || 1);
+        const skipCount = (currentPage - 1) * PAGE_SIZE;
 
         let filter = {
             userType: 'labour',
@@ -833,12 +1413,15 @@ app.get('/find-labour', async (req, res) => {
         }
 
         let labours;
+        let totalCount;
 
         // =========================
         // NEAREST WORKER ALGORITHM
         // =========================
 
         if (latitude && longitude) {
+
+            totalCount = await User.countDocuments(filter);
 
             labours = await User.aggregate([
                 {
@@ -854,7 +1437,9 @@ app.get('/find-labour', async (req, res) => {
                         spherical: true,
                         query: filter
                     }
-                }
+                },
+                { $skip: skipCount },
+                { $limit: PAGE_SIZE }
             ]);
 
         } else {
@@ -882,9 +1467,26 @@ app.get('/find-labour', async (req, res) => {
                     };
             }
 
+            totalCount = await User.countDocuments(filter);
+
             labours = await User
                 .find(filter)
-                .sort(sortOptions);
+                .sort(sortOptions)
+                .skip(skipCount)
+                .limit(PAGE_SIZE);
+        }
+
+        const hasMore = skipCount + labours.length < totalCount;
+
+        // AJAX "Load More" requests just want the next page of cards as JSON
+        if (req.query.format === 'json') {
+            return res.json({
+                success: true,
+                labours,
+                hasMore,
+                nextPage: currentPage + 1,
+                totalCount
+            });
         }
 
         const professions = await User.distinct(
@@ -897,12 +1499,17 @@ app.get('/find-labour', async (req, res) => {
         res.render('findLabour', {
             labours,
             professions,
+            hasMore,
+            currentPage,
+            totalCount,
             searchParams: {
                 search: search || '',
                 profession: profession || '',
                 minRating: minRating || '',
                 maxPrice: maxPrice || '',
-                sortBy: sortBy || 'rating'
+                sortBy: sortBy || 'rating',
+                latitude: latitude || '',
+                longitude: longitude || ''
             },
             user: req.session?.userId
                 ? await User.findById(req.session.userId)
@@ -912,6 +1519,10 @@ app.get('/find-labour', async (req, res) => {
     } catch (error) {
 
         console.error(error);
+
+        if (req.query.format === 'json') {
+            return res.status(500).json({ success: false, message: 'Error loading more professionals' });
+        }
 
         res.status(500).render('error', {
             error: 'Error loading labour search page',

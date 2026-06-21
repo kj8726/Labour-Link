@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= editPost ? 'Edit Job' : 'Post a Job' %> - LabourLink</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <header class="bg-dark text-white py-3 mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="/profile/customer" class="text-white me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="h4 mb-0">
+                    <i class="fas fa-bullhorn me-2"></i><%= editPost ? 'Edit Job Post' : 'Post a Public Job' %>
+                </h1>
+            </div>
+            <a href="/profile/customer" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-user me-1"></i>My Profile
+            </a>
+        </div>
+    </header>
+
+    <div class="container pb-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-7">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">
+                            Posting here makes your job visible to <strong>every available professional</strong>
+                            who matches — or, if you're not sure what trade you need, leave the profession as
+                            "Not sure / Any Profession" and it'll be shown to <strong>all</strong> workers.
+                            Interested workers can respond, and you can pick whoever you'd like to hire.
+                        </p>
+
+                        <div id="postJobAlert" class="alert alert-danger d-none" role="alert"></div>
+
+                        <form id="postJobForm">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="title" name="title"
+                                       placeholder="e.g. Fix kitchen sink leak" required
+                                       value="<%= editPost ? editPost.title : '' %>">
+                                <label for="title">Job Title</label>
+                            </div>
+
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="profession" name="profession">
+                                    <option value="" <%= (!editPost || !editPost.profession) ? 'selected' : '' %>>
+                                        Not sure / Any Profession
+                                    </option>
+                                    <% professions.forEach(function(p) { %>
+                                        <option value="<%= p %>" <%= (editPost && editPost.profession === p) ? 'selected' : '' %>><%= p %></option>
+                                    <% }); %>
+                                </select>
+                                <label for="profession">Profession Needed (optional)</label>
+                            </div>
+                            <p class="form-text mt-n2 mb-3">
+                                Not sure which trade you need? Leave this as "Not sure / Any Profession" — your
+                                request will be shown to workers from every trade.
+                            </p>
+
+                            <div class="form-floating mb-3">
+                                <textarea class="form-control" id="description" name="description"
+                                          placeholder="Describe the work" style="height: 110px"><%= editPost ? editPost.description : '' %></textarea>
+                                <label for="description">Description</label>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="number" class="form-control" id="budget" name="budget"
+                                               placeholder="Budget" min="0"
+                                               value="<%= (editPost && editPost.budget) ? editPost.budget : '' %>">
+                                        <label for="budget">Budget (₹, optional)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="number" class="form-control" id="workersNeeded" name="workersNeeded"
+                                               placeholder="Workers needed" min="1"
+                                               value="<%= editPost ? editPost.workersNeeded : 1 %>">
+                                        <label for="workersNeeded">Workers Needed</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="mt-4 mb-3"><i class="fas fa-map-marker-alt me-2"></i>Location</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="street" name="street" placeholder="Street"
+                                               value="<%= (editPost && editPost.address) ? (editPost.address.street || '') : '' %>">
+                                        <label for="street">Street</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="city" name="city" placeholder="City"
+                                               value="<%= (editPost && editPost.address) ? (editPost.address.city || '') : '' %>">
+                                        <label for="city">City</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="state" name="state" placeholder="State"
+                                               value="<%= (editPost && editPost.address) ? (editPost.address.state || '') : '' %>">
+                                        <label for="state">State</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="zipCode" name="zipCode" placeholder="PIN Code"
+                                               value="<%= (editPost && editPost.address) ? (editPost.address.zipCode || '') : '' %>">
+                                        <label for="zipCode">PIN Code</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100 mt-2" id="postJobBtn">
+                                <i class="fas fa-paper-plane me-2"></i><%= editPost ? 'Save Changes' : 'Post Job Publicly' %>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const isEdit = <%= editPost ? 'true' : 'false' %>;
+        const submitUrl = isEdit ? '/jobs/<%= editPost ? editPost._id : "" %>/edit' : '/jobs/create';
+        const defaultLabel = isEdit ? 'Save Changes' : 'Post Job Publicly';
+
+        document.getElementById('postJobForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const alertBox = document.getElementById('postJobAlert');
+            alertBox.classList.add('d-none');
+
+            const btn = document.getElementById('postJobBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + (isEdit ? 'Saving...' : 'Posting...');
+
+            const formData = new FormData(this);
+            const payload = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await fetch(submitUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    window.location.href = '/profile/customer';
+                } else {
+                    alertBox.textContent = data.message || 'Something went wrong. Please try again.';
+                    alertBox.classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>' + defaultLabel;
+                }
+            } catch (err) {
+                console.error('Error saving job:', err);
+                alertBox.textContent = 'Error saving job. Please try again.';
+                alertBox.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>' + defaultLabel;
+            }
+        });
+    </script>
+</body>
+</html>

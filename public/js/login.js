@@ -16,7 +16,46 @@ class LoginRegistrationFlow {
         // Don't init map here — do it lazily when step 3 becomes visible
         this.setupEventListeners();
         this.initializeStepNavigation();
+        this.restoreLoginErrorState();
         this.preSelectUserType();
+    }
+
+    // If the server re-rendered this page after a failed login attempt,
+    // jump straight back to the login form on Step 2 and show the error there
+    // instead of dropping the user back on the account-type selection screen.
+    restoreLoginErrorState() {
+        const body = document.body;
+        const loginError = body.dataset.loginError;
+
+        if (!loginError) return;
+
+        const preselType = body.dataset.preselType;
+        const loginEmail = body.dataset.loginEmail;
+
+        if (preselType === 'customer' || preselType === 'labour') {
+            const userTypeCard = document.querySelector(`.user-type-card[data-type="${preselType}"]`);
+            if (userTypeCard) {
+                this.handleUserTypeSelection(userTypeCard);
+                userTypeCard.classList.add('selected');
+            }
+        }
+
+        if (loginEmail) {
+            const emailField = document.getElementById('loginEmail');
+            if (emailField) emailField.value = loginEmail;
+        }
+
+        this.navigateToStep(2);
+
+        const errorAlert = document.getElementById('loginErrorAlert');
+        const errorText = document.getElementById('loginErrorText');
+        if (errorAlert && errorText) {
+            errorText.textContent = loginError;
+            errorAlert.classList.remove('d-none');
+        }
+
+        const passwordField = document.getElementById('loginPassword');
+        if (passwordField) passwordField.focus();
     }
 
     // Called the first time step 3 is shown
@@ -481,5 +520,5 @@ class LoginRegistrationFlow {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    new LoginRegistrationFlow();
+    window.loginFlow = new LoginRegistrationFlow();
 });

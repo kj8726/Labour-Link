@@ -92,6 +92,25 @@
             transition: all 0.3s ease;
         }
 
+        .orders-list {
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .orders-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .orders-list::-webkit-scrollbar-thumb {
+            background: #ced4da;
+            border-radius: 3px;
+        }
+
+        .orders-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
         .order-item:hover {
             background: #e9ecef;
             transform: translateX(5px);
@@ -526,6 +545,56 @@
                         </div>
                     </div>
 
+                    <!-- My Public Job Posts -->
+                    <div class="card profile-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3 class="section-title mb-0">
+                                    <i class="fas fa-bullhorn me-2"></i>My Public Job Posts
+                                </h3>
+                                <a href="/post-job" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Post Job
+                                </a>
+                            </div>
+                            <% if (typeof myJobPosts !== 'undefined' && myJobPosts.length > 0) { %>
+                                <% myJobPosts.forEach(function(post) { %>
+                                    <% const statusColors = { open: 'bg-success', closed: 'bg-secondary', cancelled: 'bg-secondary', expired: 'bg-warning text-dark' }; %>
+                                    <div class="d-flex justify-content-between align-items-center border-bottom py-2 flex-wrap gap-2">
+                                        <div>
+                                            <strong><%= post.title %></strong>
+                                            <div class="small text-muted">
+                                                <%= post.profession || 'Any Profession' %> &middot;
+                                                <%= post.responses.length %> response<%= post.responses.length === 1 ? '' : 's' %>
+                                                <% if (post.workersNeeded > 1) { %>
+                                                    &middot; <%= post.responses.filter(r => r.status === 'accepted').length %>/<%= post.workersNeeded %> hired
+                                                <% } %>
+                                                &middot;
+                                                <span class="badge <%= statusColors[post.status] || 'bg-secondary' %>">
+                                                    <%= post.status.charAt(0).toUpperCase() + post.status.slice(1) %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <% if (post.status === 'open') { %>
+                                                <a href="/jobs/<%= post._id %>/edit" class="btn btn-outline-secondary btn-sm">
+                                                    Edit
+                                                </a>
+                                                <button class="btn btn-outline-danger btn-sm job-cancel-btn" data-job-id="<%= post._id %>">
+                                                    Cancel
+                                                </button>
+                                            <% } %>
+                                            <a href="/jobs/<%= post._id %>/responses" class="btn btn-outline-primary btn-sm">
+                                                View Responses
+                                            </a>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            <% } else { %>
+                                <p class="text-muted mb-0">You haven't posted any public jobs yet.</p>
+                            <% } %>
+                        </div>
+                    </div>
+
                     <!-- Quick Actions -->
                     <div class="card profile-card">
                         <div class="card-body">
@@ -537,6 +606,12 @@
                                     <a href="/find-labour" class="btn btn-outline-primary w-100 quick-action-btn">
                                         <i class="fas fa-search fa-2x mb-2"></i>
                                         <span>Find Professionals</span>
+                                    </a>
+                                </div>
+                                <div class="col-6">
+                                    <a href="/post-job" class="btn btn-outline-success w-100 quick-action-btn">
+                                        <i class="fas fa-bullhorn fa-2x mb-2"></i>
+                                        <span>Post a Public Job</span>
                                     </a>
                                 </div>
                                 <div class="col-6">
@@ -781,6 +856,37 @@ document
                         fallback.style.display = 'flex';
                     }
                 });
+            });
+        });
+
+        // Cancel a public job post
+        document.querySelectorAll('.job-cancel-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                if (!confirm('Cancel this job post? Workers will no longer be able to apply.')) {
+                    return;
+                }
+
+                const jobId = this.dataset.jobId;
+                this.disabled = true;
+                this.textContent = 'Cancelling...';
+
+                try {
+                    const res = await fetch(`/jobs/${jobId}/cancel`, { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Could not cancel this job post');
+                        this.disabled = false;
+                        this.textContent = 'Cancel';
+                    }
+                } catch (err) {
+                    console.error('Error cancelling job post:', err);
+                    alert('Error cancelling job post. Please try again.');
+                    this.disabled = false;
+                    this.textContent = 'Cancel';
+                }
             });
         });
     </script>

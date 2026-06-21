@@ -41,12 +41,18 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
                     <li class="nav-item">
                         <a class="nav-link" href="#featured-pros">Professionals</a>
                     </li>
+                    <% if (!user || user.userType === 'labour') { %>
                     <li class="nav-item">
                         <a class="nav-link" href="#jobs">Available Jobs</a>
                     </li>
+                    <% } %>
                 </ul>
-                <div class="navbar-nav">
+                <div class="navbar-nav align-items-lg-center">
                     <% if (user) { %>
+                        <a class="nav-link position-relative me-2" href="#" id="notifBellBtn" title="Notifications">
+                            <i class="fas fa-bell"></i>
+                            <span id="notifBadge" class="badge rounded-pill bg-danger d-none" style="position:absolute; top:0; right:0; font-size:0.6rem;">0</span>
+                        </a>
                         <% if (user.userType === 'customer') { %>
                             <a class="nav-link" href="/profile/customer">
                                 <i class="fas fa-user me-1"></i>My Profile
@@ -71,6 +77,21 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
             </div>
         </div>
     </nav>
+
+    <!-- Notifications Dropdown Panel -->
+    <% if (user) { %>
+    <div id="notifPanel" class="card shadow d-none" style="position: fixed; top: 70px; right: 20px; width: 340px; max-height: 70vh; overflow-y: auto; z-index: 1050;">
+        <div class="card-body p-0">
+            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                <strong class="ms-1">Notifications</strong>
+                <button class="btn btn-sm btn-link text-decoration-none" id="markAllReadBtn">Mark all read</button>
+            </div>
+            <div id="notifList" class="p-2">
+                <p class="text-muted text-center small mb-0 py-3">Loading...</p>
+            </div>
+        </div>
+    </div>
+    <% } %>
 
     <!-- Hero Section -->
     <section class="hero-section">
@@ -427,20 +448,27 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
     </section>
 
     <!-- Available Jobs Section -->
+    <% if (!user || user.userType === 'labour') { %>
     <section id="jobs" class="section-jobs">
         <div class="container">
             <div class="section-header text-center">
                 <h2>Available Jobs</h2>
-                <p class="section-subtitle">Latest job postings from customers</p>
+                <p class="section-subtitle">
+                    <% if (user) { %>
+                        Open <%= user.profession %> jobs posted by customers
+                    <% } else { %>
+                        Latest public job postings from customers
+                    <% } %>
+                </p>
             </div>
             <div class="row">
-                <% if (recentJobs.length > 0) { %>
-                    <% recentJobs.forEach(function(job) { %>
+                <% if (publicJobPosts.length > 0) { %>
+                    <% publicJobPosts.forEach(function(job) { %>
                         <div class="col-lg-6">
                             <div class="job-card">
                                 <div class="job-header">
-                                    <h5 class="job-title"><%= job.service %></h5>
-                                    <span class="job-badge">New</span>
+                                    <h5 class="job-title"><%= job.title %></h5>
+                                    <span class="job-badge"><%= job.profession || 'Any Profession' %></span>
                                 </div>
                                 <p class="job-description"><%= job.description %></p>
                                 <div class="job-details">
@@ -448,14 +476,16 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
                                         <i class="fas fa-user"></i>
                                         <span><%= job.customerId.name %></span>
                                     </div>
-                                    <div class="detail">
-                                        <i class="fas fa-map-marker-alt"></i>
-                                        <span><%= job.address.city %></span>
-                                    </div>
-                                    <% if (job.amount) { %>
+                                    <% if (job.address && job.address.city) { %>
+                                        <div class="detail">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            <span><%= job.address.city %></span>
+                                        </div>
+                                    <% } %>
+                                    <% if (job.budget) { %>
                                         <div class="detail">
                                             <i class="fas fa-rupee-sign"></i>
-                                            <span>₹<%= job.amount %></span>
+                                            <span>₹<%= job.budget %></span>
                                         </div>
                                     <% } %>
                                 </div>
@@ -464,7 +494,7 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
                                         Posted <%= new Date(job.createdAt).toLocaleDateString() %>
                                     </span>
                                     <% if (user && user.userType === 'labour') { %>
-                                        <button class="btn btn-success btn-sm">
+                                        <button class="btn btn-success btn-sm job-apply-btn" data-job-id="<%= job._id %>" data-job-title="<%= job.title %>">
                                             Apply Now
                                         </button>
                                     <% } else { %>
@@ -481,13 +511,27 @@ href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
                         <div class="no-jobs">
                             <i class="fas fa-briefcase fa-3x text-muted mb-3"></i>
                             <h5>No Jobs Available</h5>
-                            <p class="text-muted">Check back later for new job postings</p>
+                            <p class="text-muted">
+                                <% if (user) { %>
+                                    No open <%= user.profession %> jobs right now. Check back later.
+                                <% } else { %>
+                                    Check back later for new job postings
+                                <% } %>
+                            </p>
                         </div>
                     </div>
                 <% } %>
             </div>
+            <% if (user && user.userType === 'labour') { %>
+                <div class="text-center mt-3">
+                    <a href="/jobs" class="btn btn-outline-success">
+                        Browse All Open Jobs <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
+            <% } %>
         </div>
     </section>
+    <% } %>
 
     <!-- CTA Section -->
     <section class="section-cta">
@@ -846,7 +890,188 @@ markers.addLayer(marker);
                     }
                 });
             });
+
+            // Apply to a public job post
+            let activeHomeApplyBtn = null;
+            const homeApplyModalEl = document.getElementById('homeApplyModal');
+            const homeApplyModal = homeApplyModalEl ? new bootstrap.Modal(homeApplyModalEl) : null;
+
+            document.querySelectorAll('.job-apply-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (!homeApplyModal) return;
+                    activeHomeApplyBtn = this;
+                    document.getElementById('homeApplyJobTitle').textContent = this.dataset.jobTitle || '';
+                    document.getElementById('homeApplyMessage').value = '';
+                    homeApplyModal.show();
+                });
+            });
+
+            const confirmHomeApplyBtn = document.getElementById('confirmHomeApplyBtn');
+            if (confirmHomeApplyBtn) {
+                confirmHomeApplyBtn.addEventListener('click', async function() {
+                    if (!activeHomeApplyBtn) return;
+                    const jobId = activeHomeApplyBtn.dataset.jobId;
+                    const message = document.getElementById('homeApplyMessage').value.trim();
+
+                    this.disabled = true;
+                    this.textContent = 'Sending...';
+
+                    try {
+                        const res = await fetch(`/jobs/${jobId}/respond`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            activeHomeApplyBtn.textContent = 'Applied';
+                            activeHomeApplyBtn.disabled = true;
+                            activeHomeApplyBtn.classList.remove('btn-success');
+                            activeHomeApplyBtn.classList.add('btn-secondary');
+                            homeApplyModal.hide();
+                        } else {
+                            alert(data.message || 'Could not apply to this job');
+                        }
+                    } catch (err) {
+                        console.error('Error applying to job:', err);
+                        alert('Error applying to job. Please try again.');
+                    } finally {
+                        this.disabled = false;
+                        this.textContent = 'Send Application';
+                    }
+                });
+            }
         });
     </script>
+
+    <!-- Apply to Job Modal -->
+    <div class="modal fade" id="homeApplyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Apply to "<span id="homeApplyJobTitle"></span>"</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="homeApplyMessage" class="form-label">Message to the customer (optional)</label>
+                    <textarea class="form-control" id="homeApplyMessage" rows="3" maxlength="500"
+                              placeholder="e.g. I'm available today, my rate is ₹400"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmHomeApplyBtn">Send Application</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <% if (user) { %>
+    <script>
+        (function() {
+            const bellBtn = document.getElementById('notifBellBtn');
+            const panel = document.getElementById('notifPanel');
+            const badge = document.getElementById('notifBadge');
+            const list = document.getElementById('notifList');
+            const markAllBtn = document.getElementById('markAllReadBtn');
+
+            function timeAgo(dateStr) {
+                const diffMs = Date.now() - new Date(dateStr).getTime();
+                const mins = Math.floor(diffMs / 60000);
+                if (mins < 1) return 'just now';
+                if (mins < 60) return mins + 'm ago';
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return hrs + 'h ago';
+                return Math.floor(hrs / 24) + 'd ago';
+            }
+
+            async function loadNotifications() {
+                try {
+                    const res = await fetch('/notifications');
+                    const data = await res.json();
+                    if (!data.success) return;
+
+                    if (data.unreadCount > 0) {
+                        badge.textContent = data.unreadCount > 9 ? '9+' : data.unreadCount;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+
+                    if (data.notifications.length === 0) {
+                        list.innerHTML = '<p class="text-muted text-center small mb-0 py-3">No notifications yet</p>';
+                        return;
+                    }
+
+                    list.innerHTML = data.notifications.map(n => `
+                        <a href="${n.link || '#'}" class="d-block text-decoration-none text-dark px-2 py-2 border-bottom notif-item"
+                           data-id="${n._id}" style="${n.isRead ? '' : 'background:#f0f8ff;'}">
+                            <div class="small">${n.message}</div>
+                            <div class="text-muted" style="font-size:0.72rem;">${timeAgo(n.createdAt)}</div>
+                        </a>
+                    `).join('');
+
+                    list.querySelectorAll('.notif-item').forEach(item => {
+                        item.addEventListener('click', async () => {
+                            try {
+                                await fetch(`/notifications/${item.dataset.id}/read`, { method: 'POST' });
+                            } catch (e) { /* non-blocking */ }
+                        });
+                    });
+                } catch (err) {
+                    console.error('Error loading notifications:', err);
+                    list.innerHTML = '<p class="text-muted text-center small mb-0 py-3">Could not load notifications</p>';
+                }
+            }
+
+            if (bellBtn) {
+                bellBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    panel.classList.toggle('d-none');
+                    if (!panel.classList.contains('d-none')) {
+                        loadNotifications();
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!panel.contains(e.target) && !bellBtn.contains(e.target)) {
+                        panel.classList.add('d-none');
+                    }
+                });
+            }
+
+            if (markAllBtn) {
+                markAllBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    try {
+                        await fetch('/notifications/read-all', { method: 'POST' });
+                        loadNotifications();
+                    } catch (err) {
+                        console.error('Error marking all read:', err);
+                    }
+                });
+            }
+
+            // Poll unread count quietly in the background
+            async function pollUnreadCount() {
+                try {
+                    const res = await fetch('/notifications');
+                    const data = await res.json();
+                    if (data.success) {
+                        if (data.unreadCount > 0) {
+                            badge.textContent = data.unreadCount > 9 ? '9+' : data.unreadCount;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+                    }
+                } catch (err) { /* silent */ }
+            }
+
+            pollUnreadCount();
+            setInterval(pollUnreadCount, 60000);
+        })();
+    </script>
+    <% } %>
 </body>
 </html>

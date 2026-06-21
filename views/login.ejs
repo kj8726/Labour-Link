@@ -9,7 +9,10 @@
     <link rel="stylesheet" href="/css/login.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
 </head>
-<body class="login-body">
+<body class="login-body"
+      data-login-error="<%= error ? error.replace(/"/g, '&quot;') : '' %>"
+      data-presel-type="<%= typeof preSelectUserType !== 'undefined' && preSelectUserType ? preSelectUserType : '' %>"
+      data-login-email="<%= typeof loginEmail !== 'undefined' && loginEmail ? loginEmail.replace(/"/g, '&quot;') : '' %>">
     <!-- Animated Background -->
     <div class="background-animation">
         <div class="shape shape-1"></div>
@@ -45,15 +48,6 @@
                             <h1>Join LabourLink Community</h1>
                             <p class="text-muted">Connect with skilled professionals or showcase your expertise</p>
                         </div>
-
-                        <!-- Display Error Messages -->
-                        <% if (error) { %>
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <%= error %>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <% } %>
 
                         <!-- Progress Steps -->
                         <div class="progress-steps">
@@ -139,10 +133,15 @@
                                                     <h4>Welcome Back</h4>
                                                     <p>Sign in to your account</p>
                                                 </div>
+                                                <div class="alert alert-danger alert-dismissible fade show d-none" id="loginErrorAlert" role="alert">
+                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                    <span id="loginErrorText"></span>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                                </div>
                                                 <form id="loginForm" action="/login" method="POST">
                                                     <div class="form-floating mb-3">
                                                         <input type="email" class="form-control" id="loginEmail" name="email"
-                                                               placeholder="name@example.com" required>
+                                                               placeholder="name@example.com" value="<%= typeof loginEmail !== 'undefined' && loginEmail ? loginEmail : '' %>" required>
                                                         <label for="loginEmail"><i class="fas fa-envelope me-2"></i>Email address</label>
                                                     </div>
                                                     <div class="form-floating mb-3">

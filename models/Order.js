@@ -36,6 +36,7 @@ const orderSchema = new mongoose.Schema({
         max: 5
     },
     customerReview: String,
+    reviewDate: Date,
     images: [String],
     createdAt: {
         type: Date,

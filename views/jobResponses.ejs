@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Responses - LabourLink</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <header class="bg-dark text-white py-3 mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="/profile/customer" class="text-white me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="h4 mb-0">Responses to "<%= jobPost.title %>"</h1>
+            </div>
+            <span class="badge <%= jobPost.status === 'open' ? 'bg-success' : 'bg-secondary' %>">
+                <%= jobPost.status.charAt(0).toUpperCase() + jobPost.status.slice(1) %>
+            </span>
+        </div>
+    </header>
+
+    <div class="container pb-5">
+        <% if (jobPost.workersNeeded > 1) { %>
+            <p class="text-muted text-center">
+                Workers needed: <%= jobPost.workersNeeded %> &middot; Hired so far: <%= jobPost.responses.filter(r => r.status === 'accepted').length %>
+            </p>
+        <% } %>
+        <% if (jobPost.responses.length === 0) { %>
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5>No responses yet</h5>
+                <p class="text-muted">Professionals who are interested will show up here.</p>
+            </div>
+        <% } else { %>
+            <div class="row">
+                <% jobPost.responses.forEach(function(resp) { %>
+                    <div class="col-lg-6 mb-3">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <% if (resp.labourId.profileImage) { %>
+                                            <img src="<%= resp.labourId.profileImage %>" class="rounded-circle me-2" style="width:48px;height:48px;object-fit:cover;">
+                                        <% } else { %>
+                                            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style="width:48px;height:48px;">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        <% } %>
+                                        <div>
+                                            <h6 class="mb-0"><%= resp.labourId.name %></h6>
+                                            <small class="text-muted"><%= resp.labourId.profession %></small>
+                                        </div>
+                                    </div>
+                                    <% if (resp.status === 'accepted') { %>
+                                        <span class="badge bg-success">Accepted</span>
+                                    <% } else if (resp.status === 'declined') { %>
+                                        <span class="badge bg-secondary">Declined</span>
+                                    <% } %>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    <i class="fas fa-star text-warning"></i> <%= resp.labourId.rating || 0 %>
+                                    (<%= resp.labourId.totalReviews || 0 %> reviews)
+                                    &middot; ₹<%= resp.labourId.wagePerHour || '-' %>/hr
+                                </p>
+                                <% if (resp.message) { %>
+                                    <p class="mb-3"><%= resp.message %></p>
+                                <% } %>
+                                <div class="d-flex gap-2">
+                                    <a href="/professional/<%= resp.labourId._id %>" class="btn btn-outline-secondary btn-sm flex-fill">
+                                        View Profile
+                                    </a>
+                                    <% if (jobPost.status === 'open' && resp.status === 'pending') { %>
+                                        <button class="btn btn-success btn-sm flex-fill accept-btn" data-labour-id="<%= resp.labourId._id %>">
+                                            Accept
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm decline-btn" data-labour-id="<%= resp.labourId._id %>">
+                                            Decline
+                                        </button>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+
+    <script>
+        document.querySelectorAll('.accept-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const labourId = this.dataset.labourId;
+                this.disabled = true;
+                this.textContent = 'Sending...';
+
+                try {
+                    const res = await fetch(`/jobs/<%= jobPost._id %>/accept/${labourId}`, {
+                        method: 'POST'
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.href = '/profile/customer';
+                    } else {
+                        alert(data.message || 'Could not accept this response');
+                        this.disabled = false;
+                        this.textContent = 'Accept';
+                    }
+                } catch (err) {
+                    console.error('Error accepting response:', err);
+                    alert('Error accepting response. Please try again.');
+                    this.disabled = false;
+                    this.textContent = 'Accept';
+                }
+            });
+        });
+
+        document.querySelectorAll('.decline-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const labourId = this.dataset.labourId;
+                this.disabled = true;
+                const card = this.closest('.col-lg-6');
+
+                try {
+                    const res = await fetch(`/jobs/<%= jobPost._id %>/decline/${labourId}`, {
+                        method: 'POST'
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Could not decline this response');
+                        this.disabled = false;
+                    }
+                } catch (err) {
+                    console.error('Error declining response:', err);
+                    alert('Error declining response. Please try again.');
+                    this.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
