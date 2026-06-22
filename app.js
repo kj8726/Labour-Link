@@ -1630,6 +1630,9 @@ app.post('/update-wage', async (req, res) => {
     }
 });
 
+const aiRoutes = require('./routes/ai');
+app.use('/ai', aiRoutes);
+
 // ==================== ERROR HANDLING ====================
 
 // 404 Handler
@@ -1653,3 +1656,4 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Visit: http://localhost:${PORT}`);
 });
+

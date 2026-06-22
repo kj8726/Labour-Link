@@ -1073,5 +1073,278 @@ markers.addLayer(marker);
         })();
     </script>
     <% } %>
+<!-- AI Assistant Floating Button -->
+<button id="ai-float-btn" title="Labour-Link AI Assistant">
+    <span class="ai-icon">🤖</span>
+    <span class="ai-tooltip">Ask AI</span>
+</button>
+
+<!-- AI Popup Modal -->
+<div id="ai-popup" class="ai-popup">
+
+    <div class="ai-popup-content">
+
+        <div class="ai-popup-header">
+            <div class="ai-title">
+                🤖 Labour-Link AI
+            </div>
+
+            <button id="close-ai-popup">
+                &times;
+            </button>
+        </div>
+
+        <div class="ai-popup-body">
+            <iframe
+                src="/ai"
+                title="Labour-Link AI Assistant">
+            </iframe>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+
+/* =========================
+   FLOATING AI BUTTON
+========================= */
+
+#ai-float-btn{
+    position:fixed;
+    right:25px;
+    bottom:110px;
+    width:70px;
+    height:70px;
+    border:none;
+    border-radius:50%;
+    cursor:pointer;
+    color:#fff;
+    font-size:32px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#4f46e5,#06b6d4);
+    box-shadow:0 10px 25px rgba(79,70,229,.4);
+    z-index:9999;
+    transition:.3s;
+    animation:aiPulse 2s infinite;
+}
+
+#ai-float-btn:hover{
+    transform:translateY(-5px) scale(1.08);
+    box-shadow:0 15px 35px rgba(79,70,229,.6);
+}
+
+.ai-icon{
+    transition:.3s;
+}
+
+#ai-float-btn:hover .ai-icon{
+    transform:rotate(15deg);
+}
+
+.ai-tooltip{
+    position:absolute;
+    right:85px;
+    background:#111827;
+    color:#fff;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:14px;
+    white-space:nowrap;
+    opacity:0;
+    visibility:hidden;
+    transition:.3s;
+}
+
+#ai-float-btn:hover .ai-tooltip{
+    opacity:1;
+    visibility:visible;
+}
+
+@keyframes aiPulse{
+    0%{
+        box-shadow:0 0 0 0 rgba(79,70,229,.7);
+    }
+
+    70%{
+        box-shadow:0 0 0 15px rgba(79,70,229,0);
+    }
+
+    100%{
+        box-shadow:0 0 0 0 rgba(79,70,229,0);
+    }
+}
+
+/* =========================
+   POPUP BACKGROUND
+========================= */
+
+.ai-popup{
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.45);
+    z-index:10000;
+}
+
+.ai-popup.show{
+    display:block;
+}
+
+/* =========================
+   CHAT WIDGET STYLE
+========================= */
+
+.ai-popup-content{
+    position:absolute;
+    right:25px;
+    bottom:110px;
+
+    width:420px;
+    height:650px;
+
+    background:#fff;
+    border-radius:20px;
+    overflow:hidden;
+
+    box-shadow:
+        0 25px 50px rgba(0,0,0,.25);
+
+    animation:popupOpen .25s ease;
+}
+
+@keyframes popupOpen{
+
+    from{
+        opacity:0;
+        transform:translateY(20px) scale(.95);
+    }
+
+    to{
+        opacity:1;
+        transform:translateY(0) scale(1);
+    }
+
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.ai-popup-header{
+    height:60px;
+    background:linear-gradient(135deg,#4f46e5,#06b6d4);
+    color:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 18px;
+}
+
+.ai-title{
+    font-size:17px;
+    font-weight:600;
+}
+
+#close-ai-popup{
+    background:none;
+    border:none;
+    color:white;
+    font-size:28px;
+    cursor:pointer;
+}
+
+/* =========================
+   BODY
+========================= */
+
+.ai-popup-body{
+    height:calc(100% - 60px);
+}
+
+.ai-popup-body iframe{
+    width:100%;
+    height:100%;
+    border:none;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:768px){
+
+    #ai-float-btn{
+        width:60px;
+        height:60px;
+        font-size:28px;
+        right:15px;
+        bottom:100px;
+    }
+
+    .ai-tooltip{
+        display:none;
+    }
+
+    .ai-popup-content{
+        right:0;
+        bottom:0;
+
+        width:100%;
+        height:100%;
+
+        border-radius:0;
+    }
+}
+
+</style>
+
+<script>
+
+document.addEventListener("DOMContentLoaded",()=>{
+
+    const aiBtn =
+        document.getElementById("ai-float-btn");
+
+    const popup =
+        document.getElementById("ai-popup");
+
+    const closeBtn =
+        document.getElementById("close-ai-popup");
+
+    aiBtn.addEventListener("click",()=>{
+
+        popup.classList.add("show");
+
+    });
+
+    closeBtn.addEventListener("click",()=>{
+
+        popup.classList.remove("show");
+
+    });
+
+    popup.addEventListener("click",(e)=>{
+
+        if(e.target === popup){
+
+            popup.classList.remove("show");
+
+        }
+
+    });
+
+});
+
+</script>
+
 </body>
 </html>
